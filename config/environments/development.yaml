@@ -1,0 +1,104 @@
+# Development Environment Configuration
+environment: development
+
+# Application Settings
+app:
+  name: "PS Ticket Bot (Development)"
+  version: "0.1.0"
+  debug: true
+  host: "0.0.0.0"
+  port: 8000
+  reload: true
+
+# Logging Configuration
+logging:
+  level: DEBUG
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  handlers:
+    - console
+    - file
+  file_path: "logs/development.log"
+  max_file_size: "10MB"
+  backup_count: 5
+
+# Database Configuration
+database:
+  url: "${DATABASE_URL:-postgresql://ps_bot_user:ps_bot_password@localhost:5432/ps_ticket_bot}"
+  echo: true  # Log SQL queries
+  pool_size: 5
+  max_overflow: 10
+
+# Redis Configuration
+redis:
+  url: "${REDIS_URL:-redis://localhost:6379}"
+  db: 0
+  decode_responses: true
+  socket_timeout: 5
+  socket_connect_timeout: 5
+  retry_on_timeout: true
+
+# JIRA Configuration
+jira:
+  base_url: "${JIRA_BASE_URL}"
+  username: "${JIRA_USERNAME}"
+  api_token: "${JIRA_API_TOKEN}"
+  timeout: 30
+  max_retries: 3
+  retry_delay: 1
+  verify_ssl: true
+
+# Gemini API Configuration
+gemini:
+  api_key: "${GEMINI_API_KEY}"
+  model: "${GEMINI_MODEL:-gemini-pro}"
+  timeout: 30
+  max_retries: 3
+  retry_delay: 1
+
+# Queue Configuration
+queue:
+  broker_url: "${REDIS_URL:-redis://localhost:6379}"
+  result_backend: "${REDIS_URL:-redis://localhost:6379}"
+  task_serializer: "json"
+  accept_content: ["json"]
+  result_serializer: "json"
+  timezone: "UTC"
+  enable_utc: true
+  worker_concurrency: 2  # Lower for development
+
+# Webhook Configuration
+webhook:
+  secret: "${JIRA_WEBHOOK_SECRET:-dev-secret-key}"
+  verify_signature: false  # Disabled for development
+  timeout: 30
+
+# Security Configuration
+security:
+  secret_key: "${SECRET_KEY:-dev-secret-key-change-in-production}"
+  algorithm: "HS256"
+  access_token_expire_minutes: 30
+
+# Feature Flags
+features:
+  enable_webhooks: true
+  enable_polling: false
+  enable_ai_comments: true
+  enable_status_transitions: false  # Disabled for safety in dev
+  enable_notifications: false
+  enable_metrics: true
+  enable_health_checks: true
+
+# Monitoring Configuration
+monitoring:
+  enable_prometheus: true
+  prometheus_port: 8001
+  health_check_interval: 30
+  metrics_prefix: "ps_ticket_bot_dev"
+
+# Development Tools
+development:
+  auto_reload: true
+  debug_toolbar: true
+  profiling: false
+  mock_external_apis: false
+  test_data_enabled: true

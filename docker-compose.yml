@@ -1,0 +1,138 @@
+# Docker Compose for PS Ticket Process Bot Development Environment
+version: '3.8'
+
+services:
+  # Redis for message queue
+  redis:
+    image: redis:7-alpine
+    container_name: ps-bot-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - ps-bot-network
+
+  # PostgreSQL for persistent data (if needed)
+  postgres:
+    image: postgres:15-alpine
+    container_name: ps-bot-postgres
+    environment:
+      POSTGRES_DB: ps_ticket_bot
+      POSTGRES_USER: ps_bot_user
+      POSTGRES_PASSWORD: ps_bot_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ps_bot_user -d ps_ticket_bot"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - ps-bot-network
+
+  # Bot application (development)
+  ps-bot-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: ps-bot-dev
+    environment:
+      - ENVIRONMENT=development
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://ps_bot_user:ps_bot_password@postgres:5432/ps_ticket_bot
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"  # Webhook endpoint
+      - "8001:8001"  # Health check endpoint
+    volumes:
+      - .:/app
+      - /app/venv  # Exclude venv from volume mount
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - ps-bot-network
+    command: python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Worker process for queue processing
+  ps-bot-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: ps-bot-worker
+    environment:
+      - ENVIRONMENT=development
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://ps_bot_user:ps_bot_password@postgres:5432/ps_ticket_bot
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+      - /app/venv
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - ps-bot-network
+    command: python -m app.worker
+
+  # Monitoring with Prometheus (optional)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ps-bot-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+    networks:
+      - ps-bot-network
+    profiles:
+      - monitoring
+
+  # Grafana for dashboards (optional)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ps-bot-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    networks:
+      - ps-bot-network
+    profiles:
+      - monitoring
+
+volumes:
+  redis_data:
+  postgres_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  ps-bot-network:
+    driver: bridge

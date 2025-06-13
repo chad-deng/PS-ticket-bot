@@ -1,0 +1,104 @@
+# Staging Environment Configuration
+environment: staging
+
+# Application Settings
+app:
+  name: "PS Ticket Bot (Staging)"
+  version: "0.1.0"
+  debug: false
+  host: "0.0.0.0"
+  port: 8000
+  reload: false
+
+# Logging Configuration
+logging:
+  level: INFO
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  handlers:
+    - console
+    - file
+  file_path: "logs/staging.log"
+  max_file_size: "50MB"
+  backup_count: 10
+
+# Database Configuration
+database:
+  url: "${DATABASE_URL}"
+  echo: false
+  pool_size: 10
+  max_overflow: 20
+
+# Redis Configuration
+redis:
+  url: "${REDIS_URL}"
+  db: 0
+  decode_responses: true
+  socket_timeout: 10
+  socket_connect_timeout: 10
+  retry_on_timeout: true
+
+# JIRA Configuration
+jira:
+  base_url: "${JIRA_BASE_URL}"
+  username: "${JIRA_USERNAME}"
+  api_token: "${JIRA_API_TOKEN}"
+  timeout: 30
+  max_retries: 3
+  retry_delay: 2
+  verify_ssl: true
+
+# Gemini API Configuration
+gemini:
+  api_key: "${GEMINI_API_KEY}"
+  model: "${GEMINI_MODEL:-gemini-pro}"
+  timeout: 30
+  max_retries: 3
+  retry_delay: 2
+
+# Queue Configuration
+queue:
+  broker_url: "${REDIS_URL}"
+  result_backend: "${REDIS_URL}"
+  task_serializer: "json"
+  accept_content: ["json"]
+  result_serializer: "json"
+  timezone: "UTC"
+  enable_utc: true
+  worker_concurrency: 4
+
+# Webhook Configuration
+webhook:
+  secret: "${JIRA_WEBHOOK_SECRET}"
+  verify_signature: true
+  timeout: 30
+
+# Security Configuration
+security:
+  secret_key: "${SECRET_KEY}"
+  algorithm: "HS256"
+  access_token_expire_minutes: 30
+
+# Feature Flags
+features:
+  enable_webhooks: true
+  enable_polling: false
+  enable_ai_comments: true
+  enable_status_transitions: true
+  enable_notifications: true
+  enable_metrics: true
+  enable_health_checks: true
+
+# Monitoring Configuration
+monitoring:
+  enable_prometheus: true
+  prometheus_port: 8001
+  health_check_interval: 30
+  metrics_prefix: "ps_ticket_bot_staging"
+
+# Staging-specific settings
+staging:
+  test_mode: true
+  limited_processing: true  # Process limited number of tickets
+  notification_channels:
+    - "#staging-alerts"
+  data_retention_days: 7
