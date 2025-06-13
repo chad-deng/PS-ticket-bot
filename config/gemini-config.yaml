@@ -1,0 +1,170 @@
+# Google Gemini API Configuration for PS Ticket Process Bot
+
+gemini:
+  # API Configuration
+  api_key: "${GEMINI_API_KEY}"
+  model: "${GEMINI_MODEL:-gemini-pro}"
+  api_version: "v1"
+  base_url: "https://generativelanguage.googleapis.com"
+  
+  # Rate Limiting Configuration
+  rate_limits:
+    requests_per_minute: 60
+    requests_per_day: 1500
+    tokens_per_minute: 32000
+    tokens_per_day: 50000
+    
+  # Request Configuration
+  generation_config:
+    temperature: 0.3  # Lower temperature for more consistent responses
+    top_p: 0.8
+    top_k: 40
+    max_output_tokens: 1024
+    candidate_count: 1
+    
+  # Safety Settings
+  safety_settings:
+    - category: "HARM_CATEGORY_HARASSMENT"
+      threshold: "BLOCK_MEDIUM_AND_ABOVE"
+    - category: "HARM_CATEGORY_HATE_SPEECH"
+      threshold: "BLOCK_MEDIUM_AND_ABOVE"
+    - category: "HARM_CATEGORY_SEXUALLY_EXPLICIT"
+      threshold: "BLOCK_MEDIUM_AND_ABOVE"
+    - category: "HARM_CATEGORY_DANGEROUS_CONTENT"
+      threshold: "BLOCK_MEDIUM_AND_ABOVE"
+      
+  # Retry Configuration
+  retry_config:
+    max_attempts: 3
+    initial_delay: 1.0  # seconds
+    max_delay: 60.0     # seconds
+    exponential_base: 2.0
+    jitter: true
+    
+  # Timeout Configuration
+  timeouts:
+    connect_timeout: 10.0  # seconds
+    read_timeout: 30.0     # seconds
+    total_timeout: 60.0    # seconds
+
+# Comment Generation Configuration
+comment_generation:
+  # Prompt Templates
+  prompts:
+    system_prompt: |
+      You are a helpful JIRA ticket assistant for a Product Support team. Your role is to:
+      1. Analyze ticket quality and completeness
+      2. Generate professional, helpful comments for JIRA tickets
+      3. Request missing information in a polite and clear manner
+      4. Provide guidance on next steps
+      
+      Always maintain a professional, helpful, and constructive tone.
+      
+    user_prompt_template: |
+      Please analyze this JIRA ticket and generate a helpful comment:
+      
+      **Ticket Details:**
+      - Summary: {summary}
+      - Description: {description}
+      - Issue Type: {issue_type}
+      - Priority: {priority}
+      - Reporter: {reporter}
+      - Has Attachments: {has_attachments}
+      - Steps to Reproduce: {steps_to_reproduce}
+      - Affected Version: {affected_version}
+      
+      **Quality Assessment:**
+      - Overall Quality: {overall_quality}
+      - Issues Found: {issues_found}
+      
+      **Instructions:**
+      1. Start with a professional greeting
+      2. Acknowledge the ticket submission
+      3. If quality is high, provide encouragement and next steps
+      4. If quality is medium/low, politely request missing information
+      5. Be specific about what information is needed
+      6. End with a helpful closing
+      
+      Generate a professional JIRA comment (max 500 words):
+      
+  # Comment Templates by Quality Level
+  templates:
+    high_quality:
+      greeting: "Thank you for submitting this well-detailed ticket."
+      body: "Your ticket contains all the necessary information for our team to investigate. We'll begin working on this shortly."
+      closing: "We'll keep you updated on our progress."
+      
+    medium_quality:
+      greeting: "Thank you for submitting this ticket."
+      body: "To help us investigate this issue more effectively, could you please provide the following additional information:"
+      closing: "Once we have this information, we'll be able to proceed with the investigation."
+      
+    low_quality:
+      greeting: "Thank you for submitting this ticket."
+      body: "To properly investigate this issue, we need some additional information. Please provide:"
+      closing: "Please update this ticket with the requested information so we can assist you effectively."
+      
+  # Quality-specific messaging
+  quality_messages:
+    missing_summary: "Please provide a clear, descriptive summary of the issue."
+    missing_description: "Please provide a detailed description of the problem you're experiencing."
+    missing_steps: "Please provide step-by-step instructions to reproduce this issue."
+    missing_version: "Please specify the affected version or environment where this issue occurs."
+    missing_attachments: "For bug reports, screenshots or error logs would be very helpful."
+    high_priority_incomplete: "High priority tickets require complete information for immediate attention."
+    
+# Monitoring and Logging
+monitoring:
+  # Metrics to track
+  metrics:
+    - "api_requests_total"
+    - "api_request_duration"
+    - "api_errors_total"
+    - "token_usage_total"
+    - "comment_generation_success_rate"
+    - "rate_limit_hits"
+    
+  # Log levels for different events
+  logging:
+    api_requests: "INFO"
+    api_errors: "ERROR"
+    rate_limits: "WARNING"
+    token_usage: "DEBUG"
+    generation_failures: "ERROR"
+    
+# Feature Flags
+features:
+  enable_ai_comments: true
+  enable_quality_assessment: true
+  enable_custom_prompts: false
+  enable_sentiment_analysis: false
+  enable_language_detection: false
+  
+# Development and Testing
+development:
+  # Test mode configuration
+  test_mode: false
+  mock_responses: false
+  
+  # Sample responses for testing
+  sample_responses:
+    high_quality: |
+      Thank you for submitting this well-detailed ticket. Your report contains all the necessary information for our team to investigate, including clear steps to reproduce and the affected version. We'll begin working on this shortly and will keep you updated on our progress.
+      
+    medium_quality: |
+      Thank you for submitting this ticket. To help us investigate this issue more effectively, could you please provide the following additional information:
+      
+      - Detailed steps to reproduce the issue
+      - The specific version or environment where this occurs
+      
+      Once we have this information, we'll be able to proceed with the investigation.
+      
+    low_quality: |
+      Thank you for submitting this ticket. To properly investigate this issue, we need some additional information. Please provide:
+      
+      - A clear description of the problem you're experiencing
+      - Step-by-step instructions to reproduce the issue
+      - The affected version or environment
+      - Any relevant screenshots or error messages
+      
+      Please update this ticket with the requested information so we can assist you effectively.
