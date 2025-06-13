@@ -1,0 +1,80 @@
+Product Requirements Document: JIRA PS Ticket Process Bot
+1. Introduction
+This document outlines the product requirements for the JIRA PS (Product Support) Ticket Process Bot. The primary goal of this bot is to automate and standardize the initial triage, quality assessment, and commenting processes for incoming Product Support tickets in JIRA. By leveraging AI and predefined rules, the bot aims to improve ticket data quality, reduce manual effort for support agents, and expedite the resolution process.
+2. Goals
+●Improve Ticket Quality: Ensure all critical information is present in incoming tickets (e.g., clear summary, detailed description, steps to reproduce, affected version).
+●Automate Initial Triage: Reduce the time support agents spend on basic ticket review and information gathering.
+●Standardize Communication: Provide consistent and helpful comments on tickets, guiding reporters for better information or confirming readiness for further action.
+●Expedite Resolution: Facilitate faster ticket routing and action by ensuring tickets meet quality standards before being assigned.
+●Enhance Agent Efficiency: Free up support agents to focus on complex problem-solving rather than administrative tasks.
+3. Target Audience
+●Product Support Engineers/Agents: Primary users who will benefit from automated triage and improved ticket quality.
+●Ticket Reporters (Internal/External): Indirectly benefit from clearer communication regarding missing information and faster processing of their tickets.
+●Product Managers/Development Teams: Benefit from higher quality bug reports and feature requests.
+4. Features & Functionality
+4.1. Ticket Ingestion
+●Trigger Mechanism: The bot shall be triggered automatically upon creation of a new JIRA ticket in a specified project and issue type (e.g., "Support Request", "Bug"). It should also be manually triggerable on existing tickets if needed.
+●Data Extraction: The bot shall extract key fields from the JIRA ticket, including:
+○Summary
+○Description
+○Steps to Reproduce
+○Affected Version/Environment
+○Issue Type
+○Priority
+○Attachment Presence
+4.2. Ticket Quality Assessment
+The bot shall apply a set of configurable rules to assess ticket quality. The output of this assessment will be an "Overall Quality" (High, Medium, Low) and a list of specific "Issues Found."
+Initial Rule Set (configurable):
+●Summary Length: Summary must be at least 10 characters long and not empty.
+●Description Length: Description must be at least 50 characters long and not empty.
+●Steps to Reproduce: Must be present and at least 20 characters long.
+●Affected Version/Environment: Must be present and not empty.
+●Attachments for Bugs: For "Bug" issue types, attachments (screenshots/videos) are highly recommended. A warning will be issued if missing.
+●High Priority Check: If a ticket is marked "High" or "Highest" priority, it must meet all other mandatory quality criteria. Missing information will be highlighted more critically.
+4.3. AI Comment Generation
+The bot shall utilize an AI model (e.g., Gemini API) to generate a contextual and helpful JIRA comment based on the ticket details and the quality assessment.
+●Input for AI: Ticket summary, description, attachments presence, steps to reproduce, affected version, issue type, priority, overall quality, and a list of issues found.
+●Output Principles:
+○Professional Tone: Comments must be polite, clear, and professional.
+○Actionable Advice (Low/Medium Quality): If quality is low or medium, the comment must clearly state what information is missing and provide specific instructions on how the reporter can provide it.
+○Acknowledgement & Next Steps (High Quality): If quality is high, the comment will acknowledge the excellent quality and suggest appropriate next steps for the support agent or confirm readiness for development.
+○Standard Prefix: All AI-generated comments will start with "AI Bot Comment:".
+●JIRA Integration: The generated comment will be added to the JIRA ticket's comment section.
+4.4. Ticket Transition
+Based on the overall quality assessment, the bot shall suggest and optionally execute a JIRA status transition.
+●Transition Rules (configurable):
+○High Quality: Transition to "In Progress" or "Ready for Development".
+○Medium Quality: Transition to "Awaiting Customer Info" or "Needs Clarification".
+○Low Quality: Transition to "Needs More Info (Reporter)".
+●Permissions: The bot must have the necessary JIRA permissions to transition tickets.
+4.5. Error Handling & Notifications
+●Processing Errors: The bot shall log any errors encountered during ticket processing (e.g., API failures, invalid ticket data).
+●Notification: In case of critical errors or failures to process a ticket, the bot shall notify a designated support channel (e.g., Slack, email, or a specific JIRA queue).
+●Retries: Implement a retry mechanism for transient API errors.
+5. Non-Functional Requirements
+●Performance: The bot should process tickets promptly, aiming for a processing time of less than 30 seconds per ticket.
+●Reliability: The bot should have high uptime and be resilient to temporary API outages.
+●Security:
+○JIRA API access should use secure authentication methods (e.g., OAuth, API tokens with least privilege).
+○AI API calls should be secure and adhere to data privacy policies.
+○No sensitive customer data should be permanently stored by the bot itself outside JIRA.
+●Scalability: The bot should be able to handle a growing volume of incoming tickets without significant degradation in performance.
+●Maintainability: The codebase should be well-documented, modular, and easy to update with new rules or AI models.
+●Observability: Implement logging and monitoring to track bot activity, performance, and errors.
+6. Success Metrics
+●Reduction in Manual Triage Time: Measure the average time support agents spend on initial ticket review before bot implementation vs. after.
+●Improvement in Ticket Quality Score: Define a quantitative metric for ticket quality and track its improvement over time.
+●Faster Time to First Action: Measure the time from ticket creation to its first status transition (e.g., from "Open" to "In Progress" or "Awaiting Customer Info").
+●Agent Satisfaction: Gather feedback from support agents on the bot's usefulness and impact on their workflow.
+●Reduction in "Back and Forth" Comments: Measure the decrease in comments requesting basic information on tickets.
+7. Out of Scope
+●Complex natural language understanding (beyond basic extraction and AI comment generation).
+●Direct interaction with ticket reporters (e.g., sending emails outside of JIRA comments).
+●Automated resolution of tickets (only triage and transition based on quality).
+●Integration with systems other than JIRA and the AI model.
+8. Future Considerations
+●Configurable Rules UI: A user interface for support leads or administrators to easily configure and manage quality rules without code changes.
+●Learning & Adaptation: Explore methods for the AI model to learn from agent actions and feedback to refine comment generation and quality assessment over time.
+●Multi-Language Support: Extend AI comment generation to support multiple languages.
+●Sentiment Analysis: Analyze ticket sentiment to prioritize or escalate particularly frustrated customer tickets.
+●Knowledge Base Suggestion: Based on ticket content, suggest relevant knowledge base articles in the AI comment.

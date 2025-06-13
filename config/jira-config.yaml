@@ -1,0 +1,149 @@
+# JIRA Configuration for PS Ticket Process Bot
+# This file contains JIRA-specific configuration settings
+
+jira:
+  # JIRA Instance Configuration
+  base_url: "${JIRA_BASE_URL}"  # e.g., https://company.atlassian.net
+  api_version: "2"  # JIRA REST API version
+  
+  # Authentication Configuration
+  auth:
+    username: "${JIRA_USERNAME}"  # Bot service account username
+    api_token: "${JIRA_API_TOKEN}"  # API token for authentication
+    
+  # Target Projects Configuration
+  projects:
+    primary:
+      key: "SUPPORT"
+      name: "Product Support"
+      id: null  # To be populated after API discovery
+    test:
+      key: "SUPPORT-TEST"
+      name: "Product Support Test"
+      id: null  # To be populated after API discovery
+      
+  # Issue Types to Process
+  issue_types:
+    - name: "Bug"
+      id: null  # To be discovered via API
+      process: true
+    - name: "Support Request"
+      id: null  # To be discovered via API
+      process: true
+    - name: "Feature Request"
+      id: null  # To be discovered via API
+      process: true
+    - name: "Improvement"
+      id: null  # To be discovered via API
+      process: true
+    - name: "Epic"
+      id: null  # To be discovered via API
+      process: false  # Excluded from processing
+    - name: "Sub-task"
+      id: null  # To be discovered via API
+      process: false  # Excluded from processing
+      
+  # Field Mappings
+  fields:
+    standard:
+      summary: "summary"
+      description: "description"
+      issue_type: "issuetype"
+      priority: "priority"
+      attachments: "attachment"
+      reporter: "reporter"
+      created: "created"
+      status: "status"
+      
+    custom:
+      steps_to_reproduce: null  # To be mapped: customfield_XXXXX
+      affected_version: null    # To be mapped: customfield_XXXXX
+      customer_impact: null     # Optional: customfield_XXXXX
+      urgency: null            # Optional: customfield_XXXXX
+      
+  # Status Transitions Configuration
+  transitions:
+    high_quality:
+      - target_status: "In Progress"
+        transition_id: null  # To be discovered
+        transition_name: "Start Progress"
+      - target_status: "Ready for Development"
+        transition_id: null  # To be discovered
+        transition_name: "Ready for Dev"
+        
+    medium_quality:
+      - target_status: "Awaiting Customer Info"
+        transition_id: null  # To be discovered
+        transition_name: "Request Info"
+      - target_status: "Needs Clarification"
+        transition_id: null  # To be discovered
+        transition_name: "Need Clarification"
+        
+    low_quality:
+      - target_status: "Needs More Info (Reporter)"
+        transition_id: null  # To be discovered
+        transition_name: "More Info Needed"
+        
+  # Webhook Configuration
+  webhooks:
+    events:
+      - "jira:issue_created"
+      - "jira:issue_updated"
+    endpoint: "${BOT_WEBHOOK_URL}/webhook/jira"
+    secret: "${JIRA_WEBHOOK_SECRET}"
+    
+  # API Rate Limiting
+  rate_limits:
+    requests_per_second: 10
+    burst_limit: 50
+    retry_attempts: 3
+    retry_delay: 1  # seconds
+    
+  # Permissions Required
+  required_permissions:
+    project_permissions:
+      - "BROWSE_PROJECTS"
+      - "VIEW_ISSUES"
+      - "ADD_COMMENTS"
+      - "TRANSITION_ISSUES"
+      - "VIEW_VOTERS_AND_WATCHERS"
+    global_permissions: []
+    
+# Quality Assessment Configuration
+quality_rules:
+  summary:
+    min_length: 10
+    max_length: 255
+    required: true
+    
+  description:
+    min_length: 50
+    max_length: 32767
+    required: true
+    
+  steps_to_reproduce:
+    min_length: 20
+    required_for_issue_types: ["Bug"]
+    
+  affected_version:
+    required: true
+    required_for_issue_types: ["Bug", "Support Request"]
+    
+  attachments:
+    recommended_for_issue_types: ["Bug"]
+    required: false
+    
+  high_priority_validation:
+    enforce_all_rules: true
+    priority_levels: ["Highest", "High"]
+    
+# Quality Scoring
+quality_scoring:
+  high_quality:
+    max_issues: 1
+    
+  medium_quality:
+    max_issues: 3
+    
+  low_quality:
+    min_issues: 4

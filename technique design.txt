@@ -1,0 +1,142 @@
+Technical Design Document: JIRA PS Ticket Process Bot
+1. Introduction
+This Technical Design Document (TDD) details the architecture, components, data flow, and technology stack for the JIRA PS Ticket Process Bot, as outlined in the Product Requirements Document (PRD). This bot aims to automate ticket quality assessment, AI-driven commenting, and status transitions within JIRA.
+2. Architecture Overview
+The JIRA PS Ticket Process Bot will follow a modular, event-driven architecture, designed for scalability and maintainability. It will primarily operate as a service (e.g., a serverless function or a containerized application) that interacts with JIRA and a Large Language Model (LLM) API.
+graph TD
+    A[JIRA Instance] -->|Webhooks / Polling| B(JIRA Integration Module);
+    B --> C{Ticket Queue};
+    C --> D(Worker Process);
+    D --> E[Quality Assessment Engine];
+    D --> F[AI Comment Generation Module];
+    F --> G[Gemini API];
+    D --> H[Ticket Transition Module];
+    D --> I[Logging & Monitoring];
+    J[Configuration Store] --> D;
+    B --> I;
+    E --> I;
+    F --> I;
+    H --> I;
+    D --> A;
+    G --> F;
+
+    subgraph Bot System
+        B; C; D; E; F; H; I; J;
+    end
+
+Key Architectural Principles:
+●Modularity: Each core functionality (JIRA interaction, quality assessment, AI generation, transition) will be encapsulated in distinct modules.
+●Asynchronous Processing: Use a queue for incoming tickets to decouple JIRA events from processing logic, ensuring reliability and preventing bottlenecks.
+●Configurability: Externalize configurable rules and settings to allow for easy updates without code redeployment.
+●Observability: Comprehensive logging and monitoring to track bot activity and troubleshoot issues.
+3. Components
+3.1. JIRA Integration Module
+●Purpose: Handles communication with the JIRA instance, including receiving ticket data and sending updates (comments, transitions).
+●Trigger Mechanism:
+○Webhook Listener (Preferred): A dedicated endpoint that listens for JIRA webhooks (e.g., jira:issue_created, jira:issue_updated). This provides real-time triggering.
+○Polling (Fallback/Alternative): If webhooks are not feasible, a scheduled job will periodically query the JIRA API for new/updated tickets in specified projects/issue types.
+●Data Extraction:
+○Uses JIRA's REST API (GET /rest/api/2/issue/{issueIdOrKey}) to fetch detailed ticket fields: summary, description, customfield_steps_to_reproduce, customfield_affected_version, issuetype, priority, attachment array.
+○Parses the JSON response and maps JIRA fields to internal data structures.
+●Data Sending:
+○Adds comments: POST /rest/api/2/issue/{issueIdOrKey}/comment.
+○Transitions tickets: POST /rest/api/2/issue/{issueIdOrKey}/transitions. Requires transition ID and target status.
+●Authentication: Uses JIRA API tokens or OAuth for secure access.
+3.2. Ticket Queue
+●Purpose: Acts as a buffer for incoming ticket events, ensuring reliable processing and preventing lost events.
+●Implementation: A message queue service (e.g., AWS SQS, Google Cloud Pub/Sub, RabbitMQ, or a simple in-memory queue for very low volume).
+●Worker Process: A worker continuously pulls messages from this queue for processing.
+3.3. Quality Assessment Engine
+●Purpose: Evaluates ticket quality based on predefined, configurable rules.
+●Inputs: Parsed ticket data (summary, description, steps, version, attachments, issue type, priority).
+●Logic:
+○Implement each quality rule as a separate function.
+○Aggregate rule violations into a list of "issues found."
+○Determine "Overall Quality" (High, Medium, Low) based on the number and criticality of issues.
+○Example Rule Implementation (Pseudo-code):
+function checkSummaryLength(ticket):
+    if len(ticket.summary) < MIN_SUMMARY_LENGTH or ticket.summary is empty:
+        add_issue("Summary is too short or missing.")
+
+function checkDescriptionLength(ticket):
+    if len(ticket.description) < MIN_DESCRIPTION_LENGTH or ticket.description is empty:
+        add_issue("Description is too short or missing.")
+
+function checkAttachmentsForBug(ticket):
+    if ticket.issueType == "Bug" and not ticket.hasAttachments:
+        add_issue("Attachments recommended for bug reports.")
+
+function assessOverallQuality(issues):
+    if len(issues) == 0: return "High"
+    if len(issues) <= MAX_MEDIUM_ISSUES: return "Medium"
+    return "Low"
+
+●Configurability: Rule parameters (e.g., minimum lengths, critical issue thresholds) stored externally (e.g., JSON file, database, or environment variables).
+3.4. AI Comment Generation Module
+●Purpose: Interacts with the LLM API to generate contextual comments.
+●Inputs: Full ticket data, the Quality Assessment Report (overall quality, issues found).
+●LLM API Call:
+○Constructs a detailed prompt for the LLM, incorporating all relevant ticket information and the quality assessment results.
+○Makes an HTTP POST request to the Gemini API endpoint.
+○Handles API response, including error handling and parsing the generated text.
+○Prompt Engineering: The prompt will be carefully crafted to elicit specific types of comments based on ticket quality (e.g., "If low quality, suggest improvements; if high quality, acknowledge and propose next steps.").
+●Output: The generated text comment.
+3.5. Ticket Transition Module
+●Purpose: Determines and executes the appropriate JIRA status transition.
+●Inputs: Overall Quality from the Quality Assessment Engine.
+●Logic: Maps the overall quality to a target JIRA status (e.g., High -> "In Progress", Medium -> "Awaiting Customer Info", Low -> "Needs More Info (Reporter)").
+●JIRA API Interaction: Uses the JIRA REST API to perform the transition. This may require retrieving the transitionId for the target status first if not pre-configured.
+3.6. Error Handling & Logging
+●Centralized Logging: All operations, successes, warnings, and errors will be logged to a centralized logging service (e.g., Stackdriver Logging, ELK Stack, or simple file logs).
+●Error Types: Distinguish between transient errors (e.g., network issues, API timeouts) and permanent errors (e.g., invalid JIRA field, authentication failure).
+●Retry Mechanism: Implement exponential backoff for transient errors during JIRA or AI API calls.
+●Alerting: Integrate with a monitoring system (e.g., PagerDuty, Slack, email) to send alerts for critical errors or continuous failures to process tickets.
+3.7. Configuration Management
+●Purpose: Stores all configurable parameters, including JIRA API credentials, project/issue type mappings, quality rule thresholds, and JIRA transition mappings.
+●Storage Options:
+○Environment Variables: For sensitive credentials and runtime-specific settings.
+○Configuration Files (YAML/JSON): For rules and mappings that change less frequently and are part of the deployment.
+○Secrets Manager: For highly sensitive keys (e.g., AWS Secrets Manager, Google Secret Manager).
+4. Data Flow
+1.JIRA Issue Creation/Update: A new JIRA ticket is created or updated in a configured project/issue type.
+2.Webhook/Polling: JIRA sends a webhook event to the JIRA Integration Module, or the module's polling job identifies the new/updated ticket.
+3.Ticket Data Extraction: The JIRA Integration Module fetches full ticket details from JIRA's REST API.
+4.Queue Insertion: The extracted ticket data is placed onto the Ticket Queue.
+5.Worker Consumption: A Worker Process retrieves the ticket data from the queue.
+6.Quality Assessment: The Worker passes the ticket data to the Quality Assessment Engine, which returns an "Overall Quality" and a list of "Issues Found."
+7.AI Comment Generation: The Worker passes the ticket data and quality assessment to the AI Comment Generation Module, which calls the Gemini API and receives a generated comment.
+8.Comment & Transition: The Worker uses the JIRA Integration Module to:
+○Add the AI-generated comment to the JIRA ticket.
+○Determine the next status via the Ticket Transition Module.
+○Execute the status transition in JIRA.
+9.Logging: All steps are logged to the centralized logging system.
+5. Technology Stack
+●Primary Language: Python (due to strong libraries for web requests, JSON parsing, and potential future AI/ML integrations).
+●Web Framework (for Webhook Listener): Flask or FastAPI (lightweight and efficient).
+●JIRA API Client: jira Python library or direct requests calls for JIRA REST API.
+●LLM API: Google Gemini API (via requests or an official Python client library if available and suitable).
+●Message Queue: (Optional but recommended for robustness) Redis (for basic queues), RabbitMQ, or cloud-native options like AWS SQS / Google Cloud Pub/Sub.
+●Logging: Standard Python logging module, configured to output to stdout/stderr for easy integration with cloud logging services.
+●Deployment Environment:
+○Serverless (Recommended for low to medium volume): AWS Lambda, Google Cloud Functions, Azure Functions. Offers auto-scaling, cost-efficiency, and managed infrastructure.
+○Containerized (for higher volume or more complex deployments): Docker container deployed on Kubernetes (EKS, GKE, AKS) or a managed container service (AWS Fargate, Google Cloud Run).
+●Version Control: Git (e.g., GitHub, GitLab, Bitbucket).
+6. Deployment Considerations
+●Environment Setup: Define environments (development, staging, production) with separate JIRA instances or projects.
+●CI/CD Pipeline: Automate testing, building, and deployment of the bot using tools like GitHub Actions, GitLab CI, Jenkins, or cloud-native CI/CD.
+●Secrets Management: Securely inject JIRA API tokens and AI API keys into the runtime environment (e.g., using environment variables, cloud secrets managers).
+●Monitoring & Alerting: Set up dashboards (e.g., using cloud provider's monitoring tools, Grafana) to track bot health, processing times, and error rates. Configure alerts for critical failures.
+7. Security Considerations
+●Least Privilege: The JIRA user account or API token used by the bot should have only the minimum necessary permissions (e.g., read issues, add comments, transition issues in specified projects).
+●API Key Management: JIRA API tokens and AI API keys must be treated as sensitive secrets.
+○Do not hardcode them in the codebase.
+○Use environment variables or a dedicated secrets management service.
+●Data in Transit: All communication with JIRA and the Gemini API must use HTTPS (TLS encryption).
+●Data at Rest: No sensitive JIRA ticket data should be permanently stored by the bot. Any temporary storage (e.g., in the message queue) should be ephemeral.
+●Input Validation: Sanitize and validate all data extracted from JIRA before processing or passing to the AI model to prevent injection attacks or unexpected behavior.
+●Rate Limiting: Implement rate limiting when interacting with JIRA and AI APIs to avoid hitting API limits or causing denial of service.
+8. Future Technical Considerations
+●Configurable Rules Engine: Implement a more robust and dynamic rules engine, potentially allowing non-developers to configure rules via a UI. This could involve storing rules in a database and loading them at runtime.
+●Asynchronous AI Calls: If AI response times become a bottleneck, consider offloading AI calls to a separate, dedicated worker pool or leveraging asynchronous programming patterns.
+●Performance Optimization: Profile the bot's performance and optimize bottlenecks, especially for high ticket volumes.
+●Scalable Queueing: Transition to a fully managed queue service if the initial simple queue proves insufficient.
