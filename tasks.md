@@ -6,26 +6,26 @@ This document contains all the development tasks extracted from the development 
 **Objective:** Establish foundational elements and prepare the development environment.
 
 ### 0.1 Project Kick-off & Stakeholder Alignment
-- [ ] Confirm PRD and TDD with all stakeholders
-- [ ] Define concrete JIRA project(s) and issue types for bot operation
-- [ ] Finalize specific JIRA status transitions (e.g., "In Progress" ID, "Awaiting Customer Info" ID)
+- [x] Confirm PRD and TDD with all stakeholders
+- [x] Define concrete JIRA project(s) and issue types for bot operation
+- [x] Finalize specific JIRA status transitions (e.g., "In Progress" ID, "Awaiting Customer Info" ID)
 
 ### 0.2 JIRA API Access & Permissions
-- [ ] Obtain or create a dedicated JIRA user/API token for the bot
-- [ ] Ensure necessary permissions are granted (read issues, add comments, transition issues in target projects)
-- [ ] Set up JIRA webhooks for issue creation/update events (if using webhooks)
+- [x] Obtain or create a dedicated JIRA user/API token for the bot
+- [x] Ensure necessary permissions are granted (read issues, add comments, transition issues in target projects)
+- [x] Set up JIRA webhooks for issue creation/update events (if using webhooks)
 
 ### 0.3 LLM API Access
-- [ ] Obtain API key for Google Gemini API
-- [ ] Understand rate limits and quotas
+- [x] Obtain API key for Google Gemini API
+- [x] Understand rate limits and quotas
 
 ### 0.4 Environment Setup
-- [ ] Set up development, staging, and production environments
-- [ ] Configure version control repository (Git)
-- [ ] Establish CI/CD pipeline basics (e.g., automated linting, basic build checks)
+- [x] Set up development, staging, and production environments
+- [x] Configure version control repository (Git)
+- [x] Establish CI/CD pipeline basics (e.g., automated linting, basic build checks)
 
 ### 0.5 Initial Configuration Definition
-- [ ] Define initial configurable parameters (e.g., quality rule thresholds, JIRA field mappings, transition mappings) in a configuration file/structure
+- [x] Define initial configurable parameters (e.g., quality rule thresholds, JIRA field mappings, transition mappings) in a configuration file/structure
 
 ## Phase 1: Core Bot Development (MVP) (3-4 weeks)
 **Objective:** Develop the core functionalities of the bot as defined in the PRD and TDD, focusing on a Minimum Viable Product (MVP).

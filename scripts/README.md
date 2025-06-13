@@ -56,6 +56,24 @@ python scripts/setup_jira_webhooks.py
 - Validates webhook permissions
 - Tests webhook endpoint connectivity
 
+### `validate_configuration.py`
+Validates all configuration files and settings.
+
+**Usage:**
+```bash
+# After setting up environment
+source venv/bin/activate
+python scripts/validate_configuration.py
+```
+
+**What it validates:**
+- Environment variables
+- Configuration file syntax
+- Pydantic settings validation
+- JIRA field mappings
+- Transition configurations
+- Feature flag consistency
+
 ## Setup Process
 
 1. **Initial Setup:**
@@ -69,13 +87,18 @@ python scripts/setup_jira_webhooks.py
    nano .env
    ```
 
-3. **Validate JIRA Access:**
+3. **Validate Configuration:**
    ```bash
    source venv/bin/activate
+   python scripts/validate_configuration.py
+   ```
+
+4. **Validate JIRA Access:**
+   ```bash
    python scripts/validate_jira_access.py
    ```
 
-4. **Setup Webhooks:**
+5. **Setup Webhooks:**
    ```bash
    python scripts/setup_jira_webhooks.py
    ```

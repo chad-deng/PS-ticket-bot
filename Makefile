@@ -30,6 +30,7 @@ help:
 	@echo "  security-check  - Run security checks"
 	@echo ""
 	@echo "Validation:"
+	@echo "  validate-config - Validate configuration files and settings"
 	@echo "  validate-jira   - Validate JIRA API access"
 	@echo "  validate-gemini - Validate Gemini API access"
 	@echo "  validate-all    - Run all validations"
@@ -123,6 +124,10 @@ security-check:
 	bandit -r . -f json
 
 # Validation
+validate-config:
+	@echo "🔍 Validating configuration..."
+	python scripts/validate_configuration.py
+
 validate-jira:
 	@echo "🔍 Validating JIRA API access..."
 	python scripts/validate_jira_access.py
@@ -131,7 +136,7 @@ validate-gemini:
 	@echo "🔍 Validating Gemini API access..."
 	python scripts/validate_gemini_access.py
 
-validate-all: validate-jira validate-gemini
+validate-all: validate-config validate-jira validate-gemini
 	@echo "✅ All validations completed!"
 
 # Docker
