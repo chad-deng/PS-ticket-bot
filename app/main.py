@@ -56,10 +56,9 @@ async def metrics():
     return {"metrics": "not_implemented"}
 
 
-# Include API routers (to be implemented in Phase 1)
-# from app.api import webhooks, admin
-# app.include_router(webhooks.router, prefix="/webhook", tags=["webhooks"])
-# app.include_router(admin.router, prefix="/admin", tags=["admin"])
+# Include API routers
+from app.api import webhooks
+app.include_router(webhooks.router, prefix="/webhook", tags=["webhooks"])
 
 
 if __name__ == "__main__":
