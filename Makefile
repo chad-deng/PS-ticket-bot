@@ -21,6 +21,9 @@ help:
 	@echo "  dev-down        - Stop development environment"
 	@echo "  dev-logs        - Show development environment logs"
 	@echo "  dev-shell       - Open shell in development container"
+	@echo "  worker          - Start Celery worker locally"
+	@echo "  queue-stats     - Show queue statistics"
+	@echo "  queue-purge     - Purge all queues (development only)"
 	@echo ""
 	@echo "Code Quality:"
 	@echo "  test            - Run tests"
@@ -89,6 +92,19 @@ dev-logs:
 dev-shell:
 	@echo "🐚 Opening shell in development container..."
 	docker-compose exec ps-bot-dev bash
+
+# Queue Management
+worker:
+	@echo "👷 Starting Celery worker locally..."
+	celery -A app.core.queue:celery_app worker --loglevel=info --concurrency=4 --queues=ticket_processing,quality_assessment,ai_generation,jira_operations
+
+queue-stats:
+	@echo "📊 Getting queue statistics..."
+	curl -s http://localhost:8000/admin/queue/stats | python -m json.tool
+
+queue-purge:
+	@echo "🧹 Purging queues..."
+	curl -X POST http://localhost:8000/admin/queue/purge
 
 # Code Quality
 test:

@@ -89,7 +89,7 @@ services:
         condition: service_healthy
     networks:
       - ps-bot-network
-    command: python -m app.worker
+    command: celery -A app.core.queue:celery_app worker --loglevel=info --concurrency=2 --queues=ticket_processing,quality_assessment,ai_generation,jira_operations
 
   # Monitoring with Prometheus (optional)
   prometheus:

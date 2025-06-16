@@ -24,6 +24,7 @@ google-generativeai>=0.3.0
 # Message queue
 redis>=4.6.0
 celery>=5.3.0
+kombu>=5.3.0
 
 # Database (if needed)
 sqlalchemy>=2.0.0

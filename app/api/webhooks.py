@@ -110,17 +110,30 @@ async def should_process_webhook(webhook_data: Dict[str, Any]) -> bool:
 async def queue_ticket_processing(issue_key: str, webhook_event: str):
     """
     Queue a ticket for processing.
-    
+
     Args:
         issue_key: JIRA issue key
         webhook_event: Type of webhook event
     """
-    # TODO: Implement queue integration in Task 1.2
+    from app.core.queue import get_queue_manager
+
     logger.info(f"Queuing ticket {issue_key} for processing (event: {webhook_event})")
-    
-    # For now, we'll just log the event
-    # In Task 1.2, this will push to Redis queue
-    pass
+
+    try:
+        queue_manager = get_queue_manager()
+
+        # Determine priority based on webhook event
+        priority = "high" if webhook_event == "jira:issue_created" else "normal"
+
+        # Queue the ticket
+        task_id = queue_manager.queue_ticket_processing(issue_key, webhook_event, priority)
+
+        logger.info(f"Successfully queued ticket {issue_key} with task ID {task_id}")
+
+    except Exception as e:
+        logger.error(f"Failed to queue ticket {issue_key}: {e}", exc_info=True)
+        # Don't fail the webhook for queue errors
+        pass
 
 
 @router.post("/jira")

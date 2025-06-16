@@ -57,8 +57,12 @@ async def metrics():
 
 
 # Include API routers
-from app.api import webhooks
+from app.api import webhooks, admin, quality, ai_comments, jira_operations
 app.include_router(webhooks.router, prefix="/webhook", tags=["webhooks"])
+app.include_router(admin.router, prefix="/admin", tags=["admin"])
+app.include_router(quality.router, prefix="/quality", tags=["quality"])
+app.include_router(ai_comments.router, prefix="/ai", tags=["ai-comments"])
+app.include_router(jira_operations.router, prefix="/jira", tags=["jira-operations"])
 
 
 if __name__ == "__main__":

@@ -31,28 +31,28 @@ This document contains all the development tasks extracted from the development 
 **Objective:** Develop the core functionalities of the bot as defined in the PRD and TDD, focusing on a Minimum Viable Product (MVP).
 
 ### 1.1 JIRA Integration Module - Ingestion (Webhook Listener/Polling)
-- [ ] Develop webhook listener endpoint or polling mechanism
-- [ ] Implement JIRA REST API calls to fetch full ticket details (GET /issue/{issueIdOrKey})
-- [ ] Parse JIRA JSON response and map to internal data structures
-- [ ] Implement basic error handling for API calls
+- [x] Develop webhook listener endpoint or polling mechanism
+- [x] Implement JIRA REST API calls to fetch full ticket details (GET /issue/{issueIdOrKey})
+- [x] Parse JIRA JSON response and map to internal data structures
+- [x] Implement basic error handling for API calls
 
 ### 1.2 Ticket Queue Implementation
-- [ ] Set up the chosen message queue (e.g., Redis, SQS, Pub/Sub)
-- [ ] Implement logic to push raw ticket data onto the queue
-- [ ] Develop a Worker Process to consume messages from the queue
+- [x] Set up the chosen message queue (e.g., Redis, SQS, Pub/Sub)
+- [x] Implement logic to push raw ticket data onto the queue
+- [x] Develop a Worker Process to consume messages from the queue
 
 ### 1.3 Quality Assessment Engine
-- [ ] Implement initial set of quality rules (summary length, description length, steps to reproduce, affected version, attachments for bugs, high priority check)
-- [ ] Develop logic to determine "Overall Quality" and "Issues Found"
-- [ ] Make rule parameters configurable (from Phase 0.5)
+- [x] Implement initial set of quality rules (summary length, description length, steps to reproduce, affected version, attachments for bugs, high priority check)
+- [x] Develop logic to determine "Overall Quality" and "Issues Found"
+- [x] Make rule parameters configurable (from Phase 0.5)
 
 ### 1.4 AI Comment Generation Module
-- [ ] Implement logic to construct the prompt for the Gemini API, incorporating ticket details and quality assessment
-- [ ] Integrate with Google Gemini API to send requests and receive responses
-- [ ] Implement basic error handling for AI API calls
+- [x] Implement logic to construct the prompt for the Gemini API, incorporating ticket details and quality assessment
+- [x] Integrate with Google Gemini API to send requests and receive responses
+- [x] Implement basic error handling for AI API calls
 
 ### 1.5 JIRA Integration Module - Data Sending (Commenting)
-- [ ] Implement JIRA REST API call to add comments (POST /issue/{issueIdOrKey}/comment)
+- [x] Implement JIRA REST API call to add comments (POST /issue/{issueIdOrKey}/comment)
 
 ### 1.6 Initial Logging
 - [ ] Implement basic logging for each module's key operations (e.g., ticket received, quality assessed, comment generated)
