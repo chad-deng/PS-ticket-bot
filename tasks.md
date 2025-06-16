@@ -55,7 +55,7 @@ This document contains all the development tasks extracted from the development 
 - [x] Implement JIRA REST API call to add comments (POST /issue/{issueIdOrKey}/comment)
 
 ### 1.6 Initial Logging
-- [ ] Implement basic logging for each module's key operations (e.g., ticket received, quality assessed, comment generated)
+- [x] Implement basic logging for each module's key operations (e.g., ticket received, quality assessed, comment generated)
 
 ## Phase 2: Enhancement & Robustness (2-3 weeks)
 **Objective:** Enhance the bot with improved error handling, notifications, and full ticket transition capabilities.

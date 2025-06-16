@@ -6,9 +6,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import os
+import structlog
 
-# Import version
+# Import version and logging
 from app import __version__
+from app.core.logging_config import setup_logging
+
+# Setup logging first
+setup_logging()
+logger = structlog.get_logger(__name__)
 
 # Create FastAPI application
 app = FastAPI(
@@ -32,6 +38,7 @@ app.add_middleware(
 @app.get("/")
 async def root():
     """Root endpoint."""
+    logger.info("Root endpoint accessed")
     return {
         "message": "PS Ticket Process Bot",
         "version": __version__,
@@ -42,6 +49,7 @@ async def root():
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
+    logger.debug("Health check endpoint accessed")
     return {
         "status": "healthy",
         "version": __version__,
@@ -57,12 +65,29 @@ async def metrics():
 
 
 # Include API routers
-from app.api import webhooks, admin, quality, ai_comments, jira_operations
+from app.api import webhooks, admin, quality, ai_comments, jira_operations, logging_api
 app.include_router(webhooks.router, prefix="/webhook", tags=["webhooks"])
 app.include_router(admin.router, prefix="/admin", tags=["admin"])
 app.include_router(quality.router, prefix="/quality", tags=["quality"])
 app.include_router(ai_comments.router, prefix="/ai", tags=["ai-comments"])
 app.include_router(jira_operations.router, prefix="/jira", tags=["jira-operations"])
+app.include_router(logging_api.router, prefix="/logs", tags=["logging"])
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Application startup event."""
+    logger.info(
+        "PS Ticket Process Bot starting up",
+        version=__version__,
+        environment=os.getenv("ENVIRONMENT", "development")
+    )
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Application shutdown event."""
+    logger.info("PS Ticket Process Bot shutting down")
 
 
 if __name__ == "__main__":
