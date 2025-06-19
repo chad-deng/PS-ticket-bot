@@ -239,8 +239,10 @@ async def get_ticket_info(issue_key: str):
             
         except JiraAPIError as e:
             if e.status_code == 404:
+                logger.warning(f"Ticket {issue_key} not found")
                 raise HTTPException(status_code=404, detail=f"Ticket {issue_key} not found")
             else:
+                logger.error(f"JIRA API error: {e.message}, status: {e.status_code}")
                 raise HTTPException(status_code=500, detail=f"Failed to get ticket: {e.message}")
         
     except HTTPException:
@@ -352,6 +354,32 @@ async def test_jira_connection():
         jira_client = get_jira_client()
         settings = get_settings()
         
+        # Check if we're in development mode with example.atlassian.net
+        dev_mode = "example.atlassian.net" in settings.jira.base_url and settings.app.environment == "development"
+        
+        if dev_mode:
+            logger.info("Using mock connection in development mode")
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "status": "healthy",
+                    "jira_url": settings.jira.base_url,
+                    "username": settings.jira.username,
+                    "test_results": {
+                        "connection": True,
+                        "authentication": True,
+                        "permissions": {"browse_projects": True, "view_issues": True},
+                        "server_info": {
+                            "user": "Development User",
+                            "account_id": "dev-account-123",
+                            "email": "dev@example.com"
+                        },
+                        "errors": []
+                    },
+                    "timestamp": datetime.now().isoformat()
+                }
+            )
+        
         # Test basic connectivity by getting server info
         # This is a simple test that doesn't require specific permissions
         test_results = {
@@ -366,6 +394,7 @@ async def test_jira_connection():
             # Try to make a simple API call
             # We'll use the current user endpoint as a test
             import httpx
+            from datetime import datetime
             
             url = f"{settings.jira.base_url}/rest/api/2/myself"
             auth = (settings.jira.username, settings.jira.api_token)
@@ -407,7 +436,7 @@ async def test_jira_connection():
                 "jira_url": settings.jira.base_url,
                 "username": settings.jira.username,
                 "test_results": test_results,
-                "timestamp": "2024-01-01T00:00:00Z"  # TODO: Use actual timestamp
+                "timestamp": datetime.now().isoformat()
             }
         )
         
@@ -418,5 +447,53 @@ async def test_jira_connection():
             content={
                 "status": "unhealthy",
                 "error": str(e)
+            }
+        )
+
+
+@router.get("/debug/config")
+async def debug_config():
+    """
+    Debug endpoint to check current JIRA configuration.
+
+    Returns:
+        Current JIRA configuration and environment variables.
+    """
+    import os
+    from datetime import datetime
+
+    try:
+        settings = get_settings()
+        jira_client = get_jira_client()
+
+        return JSONResponse(
+            status_code=200,
+            content={
+                "environment_variables": {
+                    "JIRA_BASE_URL": os.getenv("JIRA_BASE_URL"),
+                    "JIRA_USERNAME": os.getenv("JIRA_USERNAME"),
+                    "ENVIRONMENT": os.getenv("ENVIRONMENT"),
+                    "JIRA_API_TOKEN": "***" if os.getenv("JIRA_API_TOKEN") else None
+                },
+                "settings_config": {
+                    "jira_base_url": settings.jira.base_url,
+                    "jira_username": settings.jira.username,
+                    "app_environment": settings.app.environment
+                },
+                "jira_client_config": {
+                    "base_url": jira_client.base_url,
+                    "username": jira_client.username,
+                    "dev_mode": jira_client.dev_mode
+                },
+                "timestamp": datetime.now().isoformat()
+            }
+        )
+
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": str(e),
+                "timestamp": datetime.now().isoformat()
             }
         )

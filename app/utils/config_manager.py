@@ -60,6 +60,10 @@ class ConfigManager:
         templates = self.settings.get_comment_templates()
         return templates.get(template_type)
     
+    def get_jira_field_mappings(self) -> Dict[str, str]:
+        """Get JIRA field mappings from configuration."""
+        return self.settings.get_jira_field_mappings()
+
     def get_field_mapping(self, field_name: str) -> Optional[str]:
         """Get JIRA field mapping for a logical field name."""
         mappings = self.settings.get_jira_field_mappings()

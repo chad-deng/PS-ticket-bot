@@ -39,21 +39,57 @@ redis:
 
 # JIRA Configuration
 jira:
-  base_url: "${JIRA_BASE_URL}"
-  username: "${JIRA_USERNAME}"
-  api_token: "${JIRA_API_TOKEN}"
-  timeout: 30
-  max_retries: 3
-  retry_delay: 1
-  verify_ssl: true
+  # JIRA Instance Configuration
+  base_url: "${JIRA_BASE_URL}"  # e.g., https://company.atlassian.net
+  api_version: "2"  # JIRA REST API version
 
-# Gemini API Configuration
-gemini:
-  api_key: "${GEMINI_API_KEY}"
-  model: "${GEMINI_MODEL:-gemini-pro}"
-  timeout: 30
-  max_retries: 3
-  retry_delay: 1
+  # Authentication Configuration
+  auth:
+    username: "${JIRA_USERNAME}"  # Bot service account username
+    api_token: "${JIRA_API_TOKEN}"  # API token for authentication
+
+  # Target Projects Configuration
+  projects:
+    primary:
+      key: "SUPPORT"
+      name: "Product Support"
+      id: null  # To be populated after API discovery
+    test:
+      key: "SUPPORT-TEST"
+      name: "Product Support Test"
+      id: null  # To be populated after API discovery
+
+  # Issue Types to Process
+  issue_types:
+    - name: "Problem"
+      id: null  # To be discovered via API
+      process: true  # Default issue type
+    - name: "Bug"
+      id: null  # To be discovered via API
+      process: true
+    - name: "Support Request"
+      id: null  # To be discovered via API
+      process: true
+    - name: "Feature Request"
+      id: null  # To be discovered via API
+      process: true
+    - name: "Improvement"
+      id: null  # To be discovered via API
+      process: true
+    - name: "Epic"
+      id: null  # To be discovered via API
+      process: false  # Excluded from processing
+    - name: "Sub-task"
+      id: null  # To be discovered via API
+      process: false  # Excluded from processing
+
+# Gemini API Configuration - loaded from environment variables via Pydantic
+# gemini:
+#   api_key: "${GEMINI_API_KEY}"
+#   model: "${GEMINI_MODEL:-gemini-pro}"
+#   timeout: 30
+#   max_retries: 3
+#   retry_delay: 1
 
 # Queue Configuration
 queue:
@@ -94,6 +130,45 @@ monitoring:
   prometheus_port: 8001
   health_check_interval: 30
   metrics_prefix: "ps_ticket_bot_dev"
+
+# Quality Assessment Configuration
+quality_rules:
+  summary:
+    min_length: 10
+    max_length: 255
+    required: true
+
+  description:
+    min_length: 50
+    max_length: 32767
+    required: true
+
+  steps_to_reproduce:
+    min_length: 20
+    required_for_issue_types: ["Problem", "Bug"]
+
+  affected_version:
+    required: true
+    required_for_issue_types: ["Problem", "Bug", "Support Request"]
+
+  attachments:
+    recommended_for_issue_types: ["Problem", "Bug"]
+    required: false
+
+  high_priority_validation:
+    enforce_all_rules: true
+    priority_levels: ["Blocker", "P1"]
+
+# Quality Scoring
+quality_scoring:
+  high_quality:
+    max_issues: 1
+
+  medium_quality:
+    max_issues: 3
+
+  low_quality:
+    min_issues: 4
 
 # Development Tools
 development:

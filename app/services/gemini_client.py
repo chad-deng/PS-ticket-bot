@@ -32,11 +32,16 @@ class GeminiClient:
     
     def __init__(self):
         """Initialize the Gemini client."""
+        import os
+        from dotenv import load_dotenv
+        load_dotenv()  # Ensure environment variables are loaded
+
         self.settings = get_settings()
         self.config_manager = get_config_manager()
-        
-        self.api_key = self.settings.gemini.api_key
-        self.model = self.settings.gemini.model
+
+        # Use environment variables directly if available, otherwise fall back to settings
+        self.api_key = os.getenv("GEMINI_API_KEY") or self.settings.gemini.api_key
+        self.model = os.getenv("GEMINI_MODEL") or self.settings.gemini.model
         self.base_url = "https://generativelanguage.googleapis.com/v1"
         
         # Generation parameters
@@ -311,7 +316,7 @@ Generate a professional JIRA comment (max 500 words):
         logger.info(f"Generating fallback comment for ticket {ticket.key}")
         
         # Get comment templates from configuration
-        templates = self.config_manager.get_comment_templates()
+        templates = self.settings.get_comment_templates()
         
         quality_level = quality_assessment.overall_quality.value
         issues_found = quality_assessment.issues_found
@@ -389,3 +394,9 @@ def get_gemini_client() -> GeminiClient:
     if _gemini_client is None:
         _gemini_client = GeminiClient()
     return _gemini_client
+
+
+def clear_gemini_client_cache():
+    """Clear the global Gemini client cache to force reload."""
+    global _gemini_client
+    _gemini_client = None

@@ -24,6 +24,9 @@ jira:
       
   # Issue Types to Process
   issue_types:
+    - name: "Problem"
+      id: null  # To be discovered via API
+      process: true  # Default issue type
     - name: "Bug"
       id: null  # To be discovered via API
       process: true
@@ -123,19 +126,19 @@ quality_rules:
     
   steps_to_reproduce:
     min_length: 20
-    required_for_issue_types: ["Bug"]
-    
+    required_for_issue_types: ["Problem", "Bug"]
+
   affected_version:
     required: true
-    required_for_issue_types: ["Bug", "Support Request"]
+    required_for_issue_types: ["Problem", "Bug", "Support Request"]
     
   attachments:
-    recommended_for_issue_types: ["Bug"]
+    recommended_for_issue_types: ["Problem", "Bug"]
     required: false
     
   high_priority_validation:
     enforce_all_rules: true
-    priority_levels: ["Highest", "High"]
+    priority_levels: ["Blocker", "P1"]
     
 # Quality Scoring
 quality_scoring:

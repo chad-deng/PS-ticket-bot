@@ -61,13 +61,13 @@ class QualityAssessmentEngine:
             applies_to_priorities=["*"]
         ))
         
-        # Steps to reproduce rule (for bugs)
+        # Steps to reproduce rule (for bugs and problems)
         rules.append(QualityRule(
             name="steps_to_reproduce",
-            description="Steps to reproduce must be provided for bugs",
-            required=self.settings.quality_rules.steps_required_for_bugs,
-            weight=30,
-            applies_to_issue_types=["Bug"],
+            description="Steps to reproduce must be provided for bugs and problems",
+            required=True,
+            weight=15,
+            applies_to_issue_types=["Bug", "Problem"],
             applies_to_priorities=["*"]
         ))
         
@@ -91,6 +91,66 @@ class QualityAssessmentEngine:
             applies_to_priorities=["*"]
         ))
         
+        # PIC (Person in Charge) rule
+        rules.append(QualityRule(
+            name="pic_field",
+            description="PIC (Person in Charge) must be specified",
+            required=True,
+            weight=10,
+            applies_to_issue_types=["Support Request", "Problem", "Bug"],
+            applies_to_priorities=["*"]
+        ))
+
+        # Customer login details rule
+        rules.append(QualityRule(
+            name="customer_login_details",
+            description="Customer login details should be provided for support tickets",
+            required=True,
+            weight=10,
+            applies_to_issue_types=["Support Request", "Problem", "Bug"],
+            applies_to_priorities=["*"]
+        ))
+
+        # Top 450 merchants impact rule
+        rules.append(QualityRule(
+            name="top_merchants_impact",
+            description="Impact on top 450 merchants must be specified",
+            required=True,
+            weight=10,
+            applies_to_issue_types=["Support Request", "Problem", "Bug"],
+            applies_to_priorities=["*"]
+        ))
+
+        # Product field rule
+        rules.append(QualityRule(
+            name="product_field",
+            description="Product must be specified",
+            required=True,
+            weight=10,
+            applies_to_issue_types=["Support Request", "Problem", "Bug"],
+            applies_to_priorities=["*"]
+        ))
+
+        # Actual result rule
+        rules.append(QualityRule(
+            name="actual_result",
+            description="Actual result must be provided",
+            required=True,
+            weight=15,
+            applies_to_issue_types=["Problem", "Bug"],
+            applies_to_priorities=["*"]
+        ))
+
+        # Expected result rule
+        rules.append(QualityRule(
+            name="expected_result",
+            description="Expected result must be provided",
+            required=True,
+            weight=15,
+            applies_to_issue_types=["Problem", "Bug"],
+            applies_to_priorities=["*"]
+        ))
+
         # High priority validation rule
         rules.append(QualityRule(
             name="high_priority_completeness",
@@ -100,7 +160,7 @@ class QualityAssessmentEngine:
             applies_to_issue_types=["*"],
             applies_to_priorities=self.settings.quality_rules.high_priority_levels
         ))
-        
+
         return rules
     
     def assess_ticket_quality(self, ticket: JiraTicket) -> QualityAssessment:
@@ -149,8 +209,14 @@ class QualityAssessmentEngine:
             steps_valid=rule_results.get("steps_to_reproduce", {}).get("passed", True),
             version_valid=rule_results.get("affected_version", {}).get("passed", True),
             attachments_valid=rule_results.get("attachments", {}).get("passed", True),
+            pic_valid=rule_results.get("pic_field", {}).get("passed", True),
+            customer_login_valid=rule_results.get("customer_login_details", {}).get("passed", True),
+            top_merchants_valid=rule_results.get("top_merchants_impact", {}).get("passed", True),
+            product_valid=rule_results.get("product_field", {}).get("passed", True),
+            actual_result_valid=rule_results.get("actual_result", {}).get("passed", True),
+            expected_result_valid=rule_results.get("expected_result", {}).get("passed", True),
             assessed_at=datetime.utcnow(),
-            rules_version="1.0"
+            rules_version="2.0"
         )
         
         logger.info(f"Quality assessment complete for {ticket.key}: {overall_quality.value} ({total_score}/100)")
@@ -182,6 +248,18 @@ class QualityAssessmentEngine:
             return self._evaluate_affected_version(ticket)
         elif rule.name == "attachments":
             return self._evaluate_attachments(ticket)
+        elif rule.name == "pic_field":
+            return self._evaluate_pic_field(ticket)
+        elif rule.name == "customer_login_details":
+            return self._evaluate_customer_login_details(ticket)
+        elif rule.name == "top_merchants_impact":
+            return self._evaluate_top_merchants_impact(ticket)
+        elif rule.name == "product_field":
+            return self._evaluate_product_field(ticket)
+        elif rule.name == "actual_result":
+            return self._evaluate_actual_result(ticket)
+        elif rule.name == "expected_result":
+            return self._evaluate_expected_result(ticket)
         elif rule.name == "high_priority_completeness":
             return self._evaluate_high_priority_completeness(ticket)
         else:
@@ -260,6 +338,145 @@ class QualityAssessmentEngine:
             }
         else:
             return {"passed": True, "message": ""}
+
+    def _evaluate_customer_login_details(self, ticket: JiraTicket) -> Dict[str, Any]:
+        """Evaluate customer login details rule."""
+        # Check both summary and description for login-related information
+        text_to_check = f"{ticket.summary or ''} {ticket.description or ''}".lower()
+
+        # Keywords that indicate login credentials are provided
+        login_keywords = [
+            "login", "username", "user name", "email", "account", "user id", "userid",
+            "customer id", "customerid", "credential", "password", "auth", "authentication",
+            "sign in", "signin", "log in", "account number", "member id", "memberid"
+        ]
+
+        # Check if any login-related keywords are present
+        has_login_info = any(keyword in text_to_check for keyword in login_keywords)
+
+        # Also check for email patterns (basic check)
+        import re
+        email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+        has_email = bool(re.search(email_pattern, text_to_check))
+
+        if has_login_info or has_email:
+            return {"passed": True, "message": ""}
+        else:
+            return {
+                "passed": False,
+                "message": "Customer login details should be provided (username, email, account ID, or customer ID)"
+            }
+
+    def _evaluate_pic_field(self, ticket: JiraTicket) -> Dict[str, Any]:
+        """Evaluate PIC (Person in Charge) field rule."""
+        # Check both summary and description for PIC information
+        text_to_check = f"{ticket.summary or ''} {ticket.description or ''}".lower()
+
+        # Keywords that indicate PIC is mentioned
+        pic_keywords = [
+            "pic", "person in charge", "contact person", "responsible person",
+            "assigned to", "handled by", "owner", "point of contact", "poc"
+        ]
+
+        # Check if any PIC-related keywords are present
+        has_pic_info = any(keyword in text_to_check for keyword in pic_keywords)
+
+        if has_pic_info:
+            return {"passed": True, "message": ""}
+        else:
+            return {
+                "passed": False,
+                "message": "PIC (Person in Charge) should be specified"
+            }
+
+    def _evaluate_top_merchants_impact(self, ticket: JiraTicket) -> Dict[str, Any]:
+        """Evaluate top 450 merchants impact rule."""
+        # Check both summary and description for merchant impact information
+        text_to_check = f"{ticket.summary or ''} {ticket.description or ''}".lower()
+
+        # Keywords that indicate merchant impact is mentioned
+        merchant_keywords = [
+            "top 450", "top merchants", "merchant", "affecting merchants",
+            "merchant impact", "450 merchants", "top 450 merchants",
+            "merchant affected", "merchant list", "high value merchants"
+        ]
+
+        # Check if any merchant impact keywords are present
+        has_merchant_info = any(keyword in text_to_check for keyword in merchant_keywords)
+
+        if has_merchant_info:
+            return {"passed": True, "message": ""}
+        else:
+            return {
+                "passed": False,
+                "message": "Impact on top 450 merchants should be specified"
+            }
+
+    def _evaluate_product_field(self, ticket: JiraTicket) -> Dict[str, Any]:
+        """Evaluate product field rule."""
+        # Check both summary and description for product information
+        text_to_check = f"{ticket.summary or ''} {ticket.description or ''}".lower()
+
+        # Keywords that indicate product is mentioned
+        product_keywords = [
+            "product", "application", "system", "platform", "service",
+            "module", "feature", "component", "app", "website", "portal"
+        ]
+
+        # Check if any product keywords are present
+        has_product_info = any(keyword in text_to_check for keyword in product_keywords)
+
+        if has_product_info:
+            return {"passed": True, "message": ""}
+        else:
+            return {
+                "passed": False,
+                "message": "Product/System should be specified"
+            }
+
+    def _evaluate_actual_result(self, ticket: JiraTicket) -> Dict[str, Any]:
+        """Evaluate actual result rule."""
+        # Check both summary and description for actual result information
+        text_to_check = f"{ticket.summary or ''} {ticket.description or ''}".lower()
+
+        # Keywords that indicate actual result is mentioned
+        actual_keywords = [
+            "actual result", "actual", "what happened", "current behavior",
+            "observed", "seeing", "getting", "result", "outcome", "behavior"
+        ]
+
+        # Check if any actual result keywords are present
+        has_actual_info = any(keyword in text_to_check for keyword in actual_keywords)
+
+        if has_actual_info:
+            return {"passed": True, "message": ""}
+        else:
+            return {
+                "passed": False,
+                "message": "Actual result should be provided (what actually happened)"
+            }
+
+    def _evaluate_expected_result(self, ticket: JiraTicket) -> Dict[str, Any]:
+        """Evaluate expected result rule."""
+        # Check both summary and description for expected result information
+        text_to_check = f"{ticket.summary or ''} {ticket.description or ''}".lower()
+
+        # Keywords that indicate expected result is mentioned
+        expected_keywords = [
+            "expected result", "expected", "should", "supposed to", "intended",
+            "expected behavior", "should be", "should have", "expectation"
+        ]
+
+        # Check if any expected result keywords are present
+        has_expected_info = any(keyword in text_to_check for keyword in expected_keywords)
+
+        if has_expected_info:
+            return {"passed": True, "message": ""}
+        else:
+            return {
+                "passed": False,
+                "message": "Expected result should be provided (what should have happened)"
+            }
     
     def _evaluate_high_priority_completeness(self, ticket: JiraTicket) -> Dict[str, Any]:
         """Evaluate high priority completeness rule."""
@@ -333,7 +550,7 @@ class QualityAssessmentEngine:
         if not assessment.description_valid:
             suggestions.append("Add a detailed description explaining what happened, what was expected, and the impact")
         
-        if not assessment.steps_valid and ticket.is_bug:
+        if not assessment.steps_valid and (ticket.is_bug or ticket.issue_type.value == "Problem"):
             suggestions.append("Include step-by-step instructions to reproduce the issue")
         
         if not assessment.version_valid:
@@ -341,7 +558,25 @@ class QualityAssessmentEngine:
         
         if not assessment.attachments_valid and ticket.is_bug:
             suggestions.append("Attach relevant screenshots, error logs, or other supporting files")
-        
+
+        if not assessment.pic_valid:
+            suggestions.append("Specify PIC (Person in Charge) or responsible person for this issue")
+
+        if not assessment.customer_login_valid:
+            suggestions.append("Provide customer login details (username, email, account ID, or customer ID) to help with investigation")
+
+        if not assessment.top_merchants_valid:
+            suggestions.append("Specify if this issue affects top 450 merchants or high-value customers")
+
+        if not assessment.product_valid:
+            suggestions.append("Specify the product, system, or application where the issue occurs")
+
+        if not assessment.actual_result_valid and ticket.is_bug:
+            suggestions.append("Describe the actual result - what actually happened or what you observed")
+
+        if not assessment.expected_result_valid and ticket.is_bug:
+            suggestions.append("Describe the expected result - what should have happened or what you expected to see")
+
         # Add priority-specific suggestions
         if ticket.is_high_priority:
             suggestions.append("High priority tickets require complete information for immediate attention")

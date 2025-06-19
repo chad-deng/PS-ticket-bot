@@ -49,11 +49,16 @@ async def assess_ticket_quality(issue_key: str):
         
         logger.info(f"Quality assessment complete for {issue_key}: {assessment.overall_quality.value}")
         
+        # Convert assessment to dict and handle datetime serialization
+        assessment_dict = assessment.dict()
+        if "assessed_at" in assessment_dict:
+            assessment_dict["assessed_at"] = assessment_dict["assessed_at"].isoformat()
+
         return JSONResponse(
             status_code=200,
             content={
                 "ticket_key": issue_key,
-                "assessment": assessment.dict(),
+                "assessment": assessment_dict,
                 "suggestions": suggestions,
                 "ticket_info": {
                     "summary": ticket.summary,
@@ -103,10 +108,15 @@ async def assess_ticket_data(ticket_data: Dict[str, Any]):
         
         logger.info(f"Quality assessment complete for {ticket.key}: {assessment.overall_quality.value}")
         
+        # Convert assessment to dict and handle datetime serialization
+        assessment_dict = assessment.dict()
+        if "assessed_at" in assessment_dict:
+            assessment_dict["assessed_at"] = assessment_dict["assessed_at"].isoformat()
+
         return JSONResponse(
             status_code=200,
             content={
-                "assessment": assessment.dict(),
+                "assessment": assessment_dict,
                 "suggestions": suggestions
             }
         )
@@ -203,8 +213,8 @@ async def test_quality_engine():
             id="1001",
             summary="Application crashes when clicking the submit button on the contact form",
             description="When users fill out the contact form and click the submit button, the application crashes with a null pointer exception. This affects all users trying to submit contact requests and prevents them from reaching our support team.",
-            issue_type=IssueType.BUG,
-            priority=Priority.HIGH,
+            issue_type=IssueType.PROBLEM,
+            priority=Priority.P1,
             status=TicketStatus.OPEN,
             reporter=JiraUser(account_id="user1", display_name="Test User"),
             created=datetime.utcnow(),
@@ -221,8 +231,8 @@ async def test_quality_engine():
             id="1002",
             summary="Bug",
             description="It's broken",
-            issue_type=IssueType.BUG,
-            priority=Priority.MEDIUM,
+            issue_type=IssueType.PROBLEM,
+            priority=Priority.P2,
             status=TicketStatus.OPEN,
             reporter=JiraUser(account_id="user2", display_name="Test User 2"),
             created=datetime.utcnow(),
@@ -240,11 +250,16 @@ async def test_quality_engine():
         for ticket in test_tickets:
             assessment = quality_engine.assess_ticket_quality(ticket)
             suggestions = quality_engine.get_quality_suggestions(assessment, ticket)
-            
+
+            # Convert assessment to dict and handle datetime serialization
+            assessment_dict = assessment.dict()
+            if "assessed_at" in assessment_dict:
+                assessment_dict["assessed_at"] = assessment_dict["assessed_at"].isoformat()
+
             results.append({
                 "ticket_key": ticket.key,
                 "ticket_summary": ticket.summary,
-                "assessment": assessment.dict(),
+                "assessment": assessment_dict,
                 "suggestions": suggestions
             })
         

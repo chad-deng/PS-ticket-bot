@@ -1,0 +1,156 @@
+# Search Configuration Profiles for PS Ticket Process Bot
+# These profiles define different search strategies for various use cases
+
+# Default profile for regular scheduled searches
+default:
+  name: "Default Scheduled Search"
+  description: "Standard search for active tickets requiring attention"
+  enabled: true
+  schedule: "*/30 * * * *"  # Every 30 minutes
+  config:
+    projects: ["PS"]
+    issue_types: ["Problem", "Bug", "Support Request"]
+    statuses: ["Open", "In Progress", "Reopened"]
+    time_range_hours: 24
+    batch_size: 50
+    exclude_processed_within_hours: 6
+  priority: "normal"
+
+# High priority search for urgent tickets
+urgent:
+  name: "Urgent Ticket Search"
+  description: "Search for high-priority tickets that need immediate attention"
+  enabled: true
+  schedule: "*/10 * * * *"  # Every 10 minutes
+  config:
+    projects: ["PS"]
+    issue_types: ["Problem", "Bug"]
+    statuses: ["Open", "In Progress"]
+    time_range_hours: 6
+    batch_size: 20
+    exclude_processed_within_hours: 2
+    # Additional JQL filters for urgent tickets
+    additional_jql: 'AND (priority = "Blocker" OR priority = "P1")'
+  priority: "high"
+
+# New ticket search for recently created issues
+new_tickets:
+  name: "New Ticket Search"
+  description: "Search for newly created tickets"
+  enabled: true
+  schedule: "*/15 * * * *"  # Every 15 minutes
+  config:
+    projects: ["PS"]
+    issue_types: ["Problem", "Bug", "Support Request"]
+    statuses: ["Open"]
+    time_range_hours: 2
+    batch_size: 30
+    exclude_processed_within_hours: 1
+    # Use created date instead of updated date
+    time_field: "created"
+  priority: "high"
+
+# Quality review search for tickets needing quality assessment
+quality_review:
+  name: "Quality Review Search"
+  description: "Search for tickets that may need quality improvement"
+  enabled: false  # Disabled by default
+  schedule: "0 */4 * * *"  # Every 4 hours
+  config:
+    projects: ["PS"]
+    issue_types: ["Problem", "Bug"]
+    statuses: ["Open", "In Progress"]
+    time_range_hours: 48
+    batch_size: 25
+    exclude_processed_within_hours: 12
+    # Additional filters for quality review
+    additional_jql: 'AND (description is EMPTY OR summary ~ "test" OR summary ~ "ignore")'
+  priority: "low"
+
+# Reopened ticket search for tickets that were reopened
+reopened:
+  name: "Reopened Ticket Search"
+  description: "Search for tickets that were recently reopened"
+  enabled: true
+  schedule: "0 */2 * * *"  # Every 2 hours
+  config:
+    projects: ["PS"]
+    issue_types: ["Problem", "Bug", "Support Request"]
+    statuses: ["Reopened"]
+    time_range_hours: 72
+    batch_size: 15
+    exclude_processed_within_hours: 4
+  priority: "high"
+
+# Stale ticket search for old tickets that might need attention
+stale_tickets:
+  name: "Stale Ticket Search"
+  description: "Search for old tickets that haven't been updated recently"
+  enabled: false  # Disabled by default
+  schedule: "0 8 * * 1"  # Weekly on Monday at 8 AM
+  config:
+    projects: ["PS"]
+    issue_types: ["Problem", "Bug", "Support Request"]
+    statuses: ["Open", "In Progress"]
+    time_range_hours: 168  # 1 week
+    batch_size: 40
+    exclude_processed_within_hours: 24
+    # Look for tickets NOT updated recently
+    additional_jql: 'AND updated <= -72h'
+  priority: "low"
+
+# Weekend monitoring for critical issues
+weekend_monitor:
+  name: "Weekend Critical Monitor"
+  description: "Monitor for critical issues during weekends"
+  enabled: false  # Enable only during weekends
+  schedule: "*/20 * * * 6,0"  # Every 20 minutes on weekends
+  config:
+    projects: ["PS"]
+    issue_types: ["Problem", "Bug"]
+    statuses: ["Open", "In Progress"]
+    time_range_hours: 12
+    batch_size: 10
+    exclude_processed_within_hours: 1
+    additional_jql: 'AND priority in ("Blocker", "P1")'
+  priority: "high"
+
+# Development/testing profile
+development:
+  name: "Development Testing"
+  description: "Configuration for development and testing purposes"
+  enabled: true
+  schedule: "manual"  # Manual trigger only
+  config:
+    projects: ["PS"]
+    issue_types: ["Problem"]
+    statuses: ["Cancelled"]  # Use cancelled tickets for testing
+    time_range_hours: 168
+    batch_size: 5
+    exclude_processed_within_hours: 0  # No exclusion for testing
+  priority: "normal"
+
+# Custom search template
+custom_template:
+  name: "Custom Search Template"
+  description: "Template for creating custom search configurations"
+  enabled: false
+  schedule: "manual"
+  config:
+    projects: ["PS"]
+    issue_types: ["Problem", "Bug", "Support Request"]
+    statuses: ["Open", "In Progress", "Reopened"]
+    time_range_hours: 24
+    batch_size: 50
+    exclude_processed_within_hours: 6
+    # Add custom JQL filters here
+    additional_jql: ""
+    # Specify custom time field if needed
+    time_field: "updated"  # or "created"
+  priority: "normal"
+  # Custom processing options
+  processing_options:
+    skip_quality_check: false
+    skip_ai_comment: false
+    skip_transition: false
+    force_reprocess: false

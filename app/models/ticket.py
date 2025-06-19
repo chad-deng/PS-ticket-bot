@@ -10,21 +10,17 @@ from enum import Enum
 
 class IssueType(str, Enum):
     """JIRA issue types."""
-    BUG = "Bug"
-    SUPPORT_REQUEST = "Support Request"
-    FEATURE_REQUEST = "Feature Request"
-    IMPROVEMENT = "Improvement"
-    EPIC = "Epic"
-    SUBTASK = "Sub-task"
+    PROBLEM = "Problem"  # Default issue type
+   
 
 
 class Priority(str, Enum):
     """JIRA priority levels."""
-    LOWEST = "Lowest"
-    LOW = "Low"
-    MEDIUM = "Medium"
-    HIGH = "High"
-    HIGHEST = "Highest"
+    BLOCKER = "Blocker"  # Highest priority
+    P1 = "P1"           # High priority
+    P2 = "P2"           # Medium priority (default)
+    P3 = "P3"           # Low priority
+    P4 = "P4"           # Lowest priority
 
 
 class TicketStatus(str, Enum):
@@ -116,12 +112,12 @@ class JiraTicket(BaseModel):
     @property
     def is_high_priority(self) -> bool:
         """Check if ticket is high priority."""
-        return self.priority in [Priority.HIGH, Priority.HIGHEST]
-    
+        return self.priority in [Priority.BLOCKER, Priority.P1]
+
     @property
     def is_bug(self) -> bool:
-        """Check if ticket is a bug."""
-        return self.issue_type == IssueType.BUG
+        """Check if ticket is a bug or problem."""
+        return self.issue_type in [IssueType.PROBLEM]
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert ticket to dictionary for processing."""
@@ -159,6 +155,12 @@ class QualityAssessment(BaseModel):
     steps_valid: bool = Field(True, description="Steps to reproduce are valid")
     version_valid: bool = Field(True, description="Affected version is specified")
     attachments_valid: bool = Field(True, description="Attachments are appropriate")
+    pic_valid: bool = Field(True, description="PIC (Person in Charge) is specified")
+    customer_login_valid: bool = Field(True, description="Customer login details are provided")
+    top_merchants_valid: bool = Field(True, description="Top 450 merchants impact is specified")
+    product_valid: bool = Field(True, description="Product/System is specified")
+    actual_result_valid: bool = Field(True, description="Actual result is provided")
+    expected_result_valid: bool = Field(True, description="Expected result is provided")
     
     # Assessment metadata
     assessed_at: datetime = Field(default_factory=datetime.utcnow, description="Assessment timestamp")

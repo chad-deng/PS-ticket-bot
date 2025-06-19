@@ -49,6 +49,7 @@ def create_celery_app() -> Celery:
             "app.tasks.ticket_processor.generate_comment": {"queue": "ai_generation"},
             "app.tasks.ticket_processor.post_comment": {"queue": "jira_operations"},
             "app.tasks.ticket_processor.transition_ticket": {"queue": "jira_operations"},
+            "app.tasks.scheduled_search.scheduled_ticket_search": {"queue": "scheduled_search"},
         },
         
         # Queue definitions
@@ -57,6 +58,7 @@ def create_celery_app() -> Celery:
             Queue("quality_assessment", routing_key="quality_assessment"),
             Queue("ai_generation", routing_key="ai_generation"),
             Queue("jira_operations", routing_key="jira_operations"),
+            Queue("scheduled_search", routing_key="scheduled_search"),
         ),
         
         # Worker settings
@@ -306,3 +308,14 @@ def get_queue_manager() -> QueueManager:
 
 # Create Celery app instance for worker
 celery_app = create_celery_app()
+
+# Import tasks to register them with Celery
+from app.tasks import ticket_processor, scheduled_search
+
+# Setup Celery Beat scheduler
+try:
+    from app.core.scheduler import setup_celery_beat
+    setup_celery_beat(celery_app)
+    logger.info("Celery Beat scheduler configured")
+except Exception as e:
+    logger.warning(f"Failed to setup Celery Beat: {e}")
