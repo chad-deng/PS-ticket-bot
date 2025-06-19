@@ -94,8 +94,10 @@ Your role is to generate professional, contextually appropriate comments that:
 3. Maintain appropriate tone based on issue severity
 4. Consider business impact and customer experience
 5. Follow established support workflows
+6. Keep comments concise and focused
+7. Avoid verbose explanations about processes or commitments
 
-Always be professional, empathetic, and solution-oriented.""",
+Always be professional, empathetic, solution-oriented, and concise.""",
             
             "unreproducible_bug": """Analyze this unreproducible bug ticket and generate a specialized comment:
 
@@ -151,13 +153,14 @@ Generate a comment that shows appreciation for quality submissions while providi
 
 **Instructions:**
 1. Thank the user for their submission
-2. Explain why additional information is needed
-3. Provide specific, actionable requests for missing information
-4. Explain how the additional information will help resolution
-5. Offer assistance if they need help providing the information
-6. Maintain encouraging tone while being clear about requirements
+2. Provide specific, actionable requests for missing information
+3. Keep explanations concise and focused
+4. Offer assistance if they need help providing the information
+5. Maintain encouraging tone while being clear about requirements
+6. Avoid verbose explanations about why information is needed
+7. Do not include commitment timelines or detailed process explanations
 
-Generate a comment that guides users to provide better information without being critical."""
+Generate a concise, helpful comment that guides users to provide better information without being verbose."""
         }
     
     async def generate_advanced_comment(self, context: CommentContext) -> AICommentResult:
