@@ -306,16 +306,33 @@ class QualityAssessmentEngine:
     
     def _evaluate_steps_to_reproduce(self, ticket: JiraTicket) -> Dict[str, Any]:
         """Evaluate steps to reproduce rule."""
-        steps = ticket.steps_to_reproduce or ""
-        min_length = self.settings.quality_rules.steps_min_length
-        
-        if len(steps) < min_length:
+        # Check both summary and description for steps-related information
+        text_to_check = f"{ticket.summary or ''} {ticket.description or ''}".lower()
+
+        # Keywords that indicate steps to reproduce are provided
+        steps_keywords = [
+            "steps", "step", "reproduce", "reproduction", "step by step", "step-by-step",
+            "how to", "procedure", "process", "instructions", "to reproduce",
+            "1.", "2.", "3.", "first", "second", "third", "then", "next",
+            "follow these", "do this", "click", "navigate", "go to"
+        ]
+
+        # Check if any steps-related keywords are present
+        has_steps_info = any(keyword in text_to_check for keyword in steps_keywords)
+
+        # Also check for numbered lists or structured content
+        import re
+        # Look for numbered steps like "1.", "2.", etc.
+        numbered_pattern = r'\b\d+\.\s'
+        has_numbered_steps = bool(re.search(numbered_pattern, text_to_check))
+
+        if has_steps_info or has_numbered_steps:
+            return {"passed": True, "message": ""}
+        else:
             return {
                 "passed": False,
-                "message": f"Steps to reproduce are missing or too short (minimum {min_length} characters required)"
+                "message": "Steps to reproduce should be provided"
             }
-        else:
-            return {"passed": True, "message": ""}
     
     def _evaluate_affected_version(self, ticket: JiraTicket) -> Dict[str, Any]:
         """Evaluate affected version rule."""
@@ -494,7 +511,20 @@ class QualityAssessmentEngine:
             issues.append("description")
         
         if ticket.is_bug:
-            if not ticket.steps_to_reproduce or len(ticket.steps_to_reproduce) < self.settings.quality_rules.steps_min_length:
+            # Use the same logic as _evaluate_steps_to_reproduce
+            text_to_check = f"{ticket.summary or ''} {ticket.description or ''}".lower()
+            steps_keywords = [
+                "steps", "step", "reproduce", "reproduction", "step by step", "step-by-step",
+                "how to", "procedure", "process", "instructions", "to reproduce",
+                "1.", "2.", "3.", "first", "second", "third", "then", "next",
+                "follow these", "do this", "click", "navigate", "go to"
+            ]
+            has_steps_info = any(keyword in text_to_check for keyword in steps_keywords)
+            import re
+            numbered_pattern = r'\b\d+\.\s'
+            has_numbered_steps = bool(re.search(numbered_pattern, text_to_check))
+
+            if not (has_steps_info or has_numbered_steps):
                 issues.append("steps to reproduce")
         
         if not ticket.affected_version:

@@ -351,6 +351,14 @@ Generate a comment that guides users to provide better information without being
         # Add timestamp
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
 
+        # Add duplicate ticket information if available
+        if context.duplicate_tickets:
+            duplicate_section = f"\n\n**Related Tickets Analysis:**\nI've identified {len(context.duplicate_tickets)} potentially related ticket(s) that may provide additional context:\n\n"
+            for dup in context.duplicate_tickets[:3]:  # Show up to 3 duplicates
+                duplicate_section += f"- **{dup.get('key', 'Unknown')}**: {dup.get('summary', 'No summary')[:60]}... ({dup.get('status', 'Unknown')})\n"
+            duplicate_section += "\nPlease review these tickets to see if they contain relevant information or if your issue might be related to an existing investigation."
+            comment += duplicate_section
+
         # Note: Status transition info removed per user feedback
         # Status transitions happen automatically in the background
 
@@ -384,6 +392,14 @@ Generate a comment that guides users to provide better information without being
 
         # Use the existing fallback but enhance it
         fallback = self.gemini_client.generate_fallback_comment(ticket, quality)
+
+        # Add duplicate ticket information if available
+        if context.duplicate_tickets:
+            duplicate_section = f"\n\n**Related Tickets Analysis:**\nI've identified {len(context.duplicate_tickets)} potentially related ticket(s) that may provide additional context:\n\n"
+            for dup in context.duplicate_tickets[:3]:  # Show up to 3 duplicates
+                duplicate_section += f"- **{dup.get('key', 'Unknown')}**: {dup.get('summary', 'No summary')[:60]}... ({dup.get('status', 'Unknown')})\n"
+            duplicate_section += "\nPlease review these tickets to see if they contain relevant information or if your issue might be related to an existing investigation."
+            fallback += duplicate_section
 
         # Note: Status transition info removed per user feedback
         # Status transitions happen automatically in the background
