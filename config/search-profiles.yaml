@@ -9,8 +9,8 @@ default:
   schedule: "*/30 * * * *"  # Every 30 minutes
   config:
     projects: ["PS"]
-    issue_types: ["Problem", "Bug", "Support Request"]
-    statuses: ["Open", "In Progress", "Reopened"]
+    issue_types: ["Problem"]
+    statuses: ["Open"]
     time_range_hours: 24
     batch_size: 50
     exclude_processed_within_hours: 6
