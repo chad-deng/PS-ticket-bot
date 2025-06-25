@@ -5,14 +5,9 @@ Tests for quality assessment engine.
 import pytest
 from datetime import datetime
 from unittest.mock import Mock, patch
-from fastapi.testclient import TestClient
 
-from app.main import app
-from app.core.quality_engine import QualityAssessmentEngine, QualityRule, get_quality_engine
-from app.models.ticket import JiraTicket, JiraUser, IssueType, Priority, TicketStatus, QualityLevel
-
-
-client = TestClient(app)
+from app.core.quality_engine import QualityAssessmentEngine, QualityRule
+from app.models.ticket import QualityLevel
 
 
 class TestQualityRule:
@@ -40,64 +35,24 @@ class TestQualityRule:
 class TestQualityAssessmentEngine:
     """Test cases for QualityAssessmentEngine."""
     
-    @pytest.fixture
-    def mock_settings(self):
-        """Mock settings for testing."""
-        with patch('app.core.quality_engine.get_settings') as mock_settings:
-            mock_settings.return_value.quality_rules.summary_min_length = 10
-            mock_settings.return_value.quality_rules.summary_max_length = 255
-            mock_settings.return_value.quality_rules.description_min_length = 50
-            mock_settings.return_value.quality_rules.description_max_length = 32767
-            mock_settings.return_value.quality_rules.steps_min_length = 20
-            mock_settings.return_value.quality_rules.steps_required_for_bugs = True
-            mock_settings.return_value.quality_rules.affected_version_required = True
-            mock_settings.return_value.quality_rules.high_priority_enforce_all_rules = True
-            mock_settings.return_value.quality_rules.high_priority_levels = ["Highest", "High"]
-            mock_settings.return_value.quality_rules.high_quality_max_issues = 1
-            mock_settings.return_value.quality_rules.medium_quality_max_issues = 3
-            mock_settings.return_value.quality_rules.low_quality_min_issues = 4
-            yield mock_settings.return_value
-    
-    @pytest.fixture
-    def sample_ticket(self):
-        """Create a sample ticket for testing."""
-        return JiraTicket(
-            key="TEST-123",
-            id="12345",
-            summary="Test issue summary with sufficient length",
-            description="This is a detailed description of the test issue that meets the minimum length requirements for quality assessment.",
-            issue_type=IssueType.BUG,
-            priority=Priority.MEDIUM,
-            status=TicketStatus.OPEN,
-            reporter=JiraUser(account_id="user123", display_name="Test User"),
-            created=datetime.utcnow(),
-            updated=datetime.utcnow(),
-            steps_to_reproduce="1. Open application\n2. Click button\n3. Observe error",
-            affected_version="1.0.0",
-            project_key="TEST",
-            project_name="Test Project"
-        )
-    
-    def test_engine_initialization(self, mock_settings):
+    def test_engine_initialization(self, mock_settings, mock_config_manager):
         """Test quality engine initialization."""
-        with patch('app.core.quality_engine.get_config_manager'):
-            engine = QualityAssessmentEngine()
-            
-            assert engine.settings is not None
-            assert len(engine.rules) > 0
-            assert any(rule.name == "summary_length" for rule in engine.rules)
-            assert any(rule.name == "description_length" for rule in engine.rules)
-    
-    def test_high_quality_assessment(self, mock_settings, sample_ticket):
+        engine = QualityAssessmentEngine()
+
+        assert engine.settings is not None
+        assert len(engine.rules) > 0
+        assert any(rule.name == "summary_length" for rule in engine.rules)
+        assert any(rule.name == "description_length" for rule in engine.rules)
+
+    def test_high_quality_assessment(self, mock_settings, mock_config_manager, high_quality_ticket):
         """Test assessment of high-quality ticket."""
-        with patch('app.core.quality_engine.get_config_manager'):
-            engine = QualityAssessmentEngine()
-            assessment = engine.assess_ticket_quality(sample_ticket)
-            
-            assert assessment.ticket_key == "TEST-123"
-            assert assessment.overall_quality == QualityLevel.HIGH
-            assert assessment.score >= 80
-            assert len(assessment.issues_found) <= 1
+        engine = QualityAssessmentEngine()
+        assessment = engine.assess_ticket_quality(high_quality_ticket)
+
+        assert assessment.ticket_key == "TEST-456"
+        assert assessment.overall_quality == QualityLevel.HIGH
+        assert assessment.score >= 80
+        assert len(assessment.issues_found) <= 1
     
     def test_low_quality_assessment(self, mock_settings):
         """Test assessment of low-quality ticket."""

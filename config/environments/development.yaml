@@ -30,7 +30,7 @@ database:
 
 # Redis Configuration
 redis:
-  url: "${REDIS_URL:-redis://localhost:6379}"
+  url: "${REDIS_URL:-redis://redis:6379}"
   db: 0
   decode_responses: true
   socket_timeout: 5
@@ -93,8 +93,8 @@ jira:
 
 # Queue Configuration
 queue:
-  broker_url: "${REDIS_URL:-redis://localhost:6379}"
-  result_backend: "${REDIS_URL:-redis://localhost:6379}"
+  broker_url: "${REDIS_URL:-redis://redis:6379}"
+  result_backend: "${REDIS_URL:-redis://redis:6379}"
   task_serializer: "json"
   accept_content: ["json"]
   result_serializer: "json"

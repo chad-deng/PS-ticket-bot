@@ -21,7 +21,7 @@ class TestQueueManager:
     def mock_settings(self):
         """Mock settings for testing."""
         with patch('app.core.queue.get_settings') as mock_settings:
-            mock_settings.return_value.redis.url = "redis://localhost:6379"
+            mock_settings.return_value.redis.url = "redis://redis:6379"
             mock_settings.return_value.redis.db = 0
             mock_settings.return_value.redis.decode_responses = True
             mock_settings.return_value.redis.socket_timeout = 5

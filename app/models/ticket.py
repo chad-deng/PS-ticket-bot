@@ -86,6 +86,12 @@ class JiraTicket(BaseModel):
     steps_to_reproduce: Optional[str] = Field(None, description="Steps to reproduce the issue")
     affected_version: Optional[str] = Field(None, description="Affected version/environment")
     customer_impact: Optional[str] = Field(None, description="Customer impact description")
+    pic: Optional[str] = Field(None, description="PIC (Person in Charge)")
+    top_450_merchants: Optional[str] = Field(None, description="Is affecting top 450 merchants")
+    product: Optional[str] = Field(None, description="Product/System")
+    actual_result: Optional[str] = Field(None, description="Actual result")
+    expected_result: Optional[str] = Field(None, description="Expected result")
+    customer_login_details: Optional[str] = Field(None, description="Customer login details")
     
     # Attachments
     attachments: List[JiraAttachment] = Field(default_factory=list, description="Ticket attachments")

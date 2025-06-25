@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch, AsyncMock
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.services.gemini_client import GeminiClient, GeminiAPIError, get_gemini_client
+from app.services.gemini_client import GeminiClient, GeminiAPIError
 from app.models.ticket import JiraTicket, JiraUser, IssueType, Priority, TicketStatus, QualityAssessment, QualityLevel
 
 
@@ -291,7 +291,7 @@ class TestAICommentsAPI:
     @patch('app.api.ai_comments.get_jira_client')
     @patch('app.api.ai_comments.get_quality_engine')
     @patch('app.api.ai_comments.get_gemini_client')
-    async def test_generate_comment_for_ticket_success(self, mock_get_gemini, mock_get_quality, mock_get_jira):
+    def test_generate_comment_for_ticket_success(self, mock_get_gemini, mock_get_quality, mock_get_jira):
         """Test successful comment generation for ticket."""
         # Setup mocks
         mock_ticket = Mock()
@@ -299,27 +299,27 @@ class TestAICommentsAPI:
         mock_ticket.issue_type.value = "Bug"
         mock_ticket.priority.value = "Medium"
         mock_ticket.status.value = "Open"
-        
+
         mock_jira = Mock()
         mock_jira.get_issue_sync.return_value = mock_ticket
         mock_get_jira.return_value = mock_jira
-        
+
         mock_assessment = Mock()
         mock_assessment.overall_quality.value = "medium"
         mock_assessment.score = 75
         mock_assessment.issues_found = ["Need more details"]
-        
+
         mock_quality = Mock()
         mock_quality.assess_ticket_quality.return_value = mock_assessment
         mock_get_quality.return_value = mock_quality
-        
+
         mock_gemini = Mock()
         mock_gemini.generate_comment = AsyncMock(return_value="Generated AI comment")
         mock_get_gemini.return_value = mock_gemini
-        
+
         # Test the endpoint
         response = client.post("/ai/generate/TEST-123")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["ticket_key"] == "TEST-123"

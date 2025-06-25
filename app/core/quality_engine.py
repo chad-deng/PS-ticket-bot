@@ -267,30 +267,59 @@ class QualityAssessmentEngine:
             return {"passed": True, "message": ""}
     
     def _evaluate_summary_length(self, ticket: JiraTicket) -> Dict[str, Any]:
-        """Evaluate summary length rule."""
+        """Evaluate summary quality rule.
+
+        Rules:
+        1. More than 10 characters
+        2. Don't include quotation marks (")
+        3. Make sure it has clarity (meaningful content)
+        """
         summary = ticket.summary or ""
-        min_length = self.settings.quality_rules.summary_min_length
-        max_length = self.settings.quality_rules.summary_max_length
-        
-        if len(summary) < min_length:
+
+        # Rule 1: Check minimum length (more than 10 characters)
+        if len(summary.strip()) <= 10:
             return {
                 "passed": False,
-                "message": f"Summary is too short (minimum {min_length} characters required)"
+                "message": "Summary is too short (minimum 10 characters required)"
             }
-        elif len(summary) > max_length:
+
+        # Rule 2: Check for quotation marks
+        if '"' in summary:
+            return {
+                "passed": False,
+                "message": "Summary should not contain quotation marks"
+            }
+
+        # Rule 3: Check for clarity (meaningful content)
+        if not self._has_clear_description(summary):
+            return {
+                "passed": False,
+                "message": "Summary should be clear and meaningful"
+            }
+
+        # Check maximum length (keep existing max limit)
+        max_length = self.settings.quality_rules.summary_max_length
+        if len(summary) > max_length:
             return {
                 "passed": False,
                 "message": f"Summary is too long (maximum {max_length} characters allowed)"
             }
-        else:
-            return {"passed": True, "message": ""}
+
+        return {"passed": True, "message": ""}
     
     def _evaluate_description_length(self, ticket: JiraTicket) -> Dict[str, Any]:
-        """Evaluate description length rule."""
+        """Evaluate description rule.
+
+        Only check description when labels contain 'Unreproducible_bug'.
+        """
+        # Check if we should validate description for this ticket
+        if not self._should_validate_description(ticket):
+            return {"passed": True, "message": ""}
+
         description = ticket.description or ""
         min_length = self.settings.quality_rules.description_min_length
         max_length = self.settings.quality_rules.description_max_length
-        
+
         if len(description) < min_length:
             return {
                 "passed": False,
@@ -303,10 +332,62 @@ class QualityAssessmentEngine:
             }
         else:
             return {"passed": True, "message": ""}
-    
+
+    def _should_validate_description(self, ticket: JiraTicket) -> bool:
+        """Check if description should be validated for this ticket.
+
+        Only validate description when issue type is 'Unreproducible Bug'.
+        """
+        return ticket.issue_type.value == "Unreproducible Bug"
+
+    def _has_clear_description(self, description: str) -> bool:
+        """Check if description has clarity and meaningful content."""
+        if not description or not description.strip():
+            return False
+
+        # Remove whitespace and check actual content
+        clean_description = description.strip()
+
+        # Check for very short or unclear descriptions
+        unclear_patterns = [
+            "test", "testing", "issue", "problem", "error", "bug", "help",
+            "not working", "broken", "fix", "please help", "urgent"
+        ]
+
+        # If description is just one of these unclear words, it's not clear
+        if clean_description.lower() in unclear_patterns:
+            return False
+
+        # Check for meaningful content (should have some descriptive words)
+        words = clean_description.split()
+        if len(words) < 3:  # At least 3 words for clarity
+            return False
+
+        # Check if it contains some action words or descriptive content
+        meaningful_indicators = [
+            "when", "after", "before", "during", "while", "because", "since",
+            "unable", "cannot", "can't", "doesn't", "won't", "fails", "failed",
+            "expected", "actual", "should", "would", "could", "trying", "attempt",
+            "click", "select", "enter", "submit", "load", "save", "delete",
+            "user", "customer", "system", "application", "page", "screen",
+            "message", "notification", "response", "result", "output"
+        ]
+
+        description_lower = clean_description.lower()
+        has_meaningful_content = any(indicator in description_lower for indicator in meaningful_indicators)
+
+        return has_meaningful_content
+
     def _evaluate_steps_to_reproduce(self, ticket: JiraTicket) -> Dict[str, Any]:
         """Evaluate steps to reproduce rule."""
-        # Check both summary and description for steps-related information
+        # First check if the dedicated steps_to_reproduce field is populated
+        if ticket.steps_to_reproduce and ticket.steps_to_reproduce.strip():
+            # Check if the steps field has meaningful content (not just whitespace)
+            steps_content = ticket.steps_to_reproduce.strip()
+            if len(steps_content) >= 20:  # Minimum meaningful length
+                return {"passed": True, "message": ""}
+
+        # If steps field is empty, check summary and description for steps-related information
         text_to_check = f"{ticket.summary or ''} {ticket.description or ''}".lower()
 
         # Keywords that indicate steps to reproduce are provided
@@ -358,35 +439,71 @@ class QualityAssessmentEngine:
 
     def _evaluate_customer_login_details(self, ticket: JiraTicket) -> Dict[str, Any]:
         """Evaluate customer login details rule."""
-        # Check both summary and description for login-related information
-        text_to_check = f"{ticket.summary or ''} {ticket.description or ''}".lower()
+        # Debug logging
+        logger.debug(f"Customer login validation for {ticket.key}:")
+        logger.debug(f"  - Customer login field: '{ticket.customer_login_details or 'None'}'")
+        logger.debug(f"  - Summary: '{ticket.summary or 'None'}'")
+        logger.debug(f"  - Description: '{(ticket.description or 'None')[:100]}...'")
 
-        # Keywords that indicate login credentials are provided
-        login_keywords = [
-            "login", "username", "user name", "email", "account", "user id", "userid",
-            "customer id", "customerid", "credential", "password", "auth", "authentication",
-            "sign in", "signin", "log in", "account number", "member id", "memberid"
-        ]
+        # Check dedicated customer login field first
+        if ticket.customer_login_details and ticket.customer_login_details.strip():
+            logger.info(f"  - Dedicated field has content, checking: '{ticket.customer_login_details}'")
+            logger.info(f"  - Field type: {type(ticket.customer_login_details)}")
+            logger.info(f"  - Field length: {len(ticket.customer_login_details)}")
+            if self._validate_customer_login_text(ticket.customer_login_details):
+                logger.info(f"  - PASSED: Valid customer login found in dedicated field")
+                return {"passed": True, "message": ""}
+            else:
+                logger.warning(f"  - Dedicated field content not recognized as valid login details")
+        else:
+            logger.info(f"  - Dedicated field is empty or None, checking summary and description")
+            logger.info(f"  - Field value: {repr(ticket.customer_login_details)}")
 
-        # Check if any login-related keywords are present
-        has_login_info = any(keyword in text_to_check for keyword in login_keywords)
+        # If dedicated field is empty or invalid, check summary and description
+        fallback_text = f"{ticket.summary or ''} {ticket.description or ''}"
+        logger.debug(f"  - Checking fallback text: '{fallback_text[:200]}...'")
 
-        # Also check for email patterns (basic check)
+        if self._validate_customer_login_text(fallback_text):
+            logger.debug(f"  - PASSED: Valid customer login found in summary/description")
+            return {"passed": True, "message": ""}
+
+        logger.debug(f"  - FAILED: No valid customer login details found")
+        return {
+            "passed": False,
+            "message": "Customer login details should be provided. Please include customer email address."
+        }
+
+    def _validate_customer_login_text(self, text: str) -> bool:
+        """Validate if text contains valid customer login details.
+
+        Simple validation: check if text is not empty and contains an email address.
+        """
+        if not text or not text.strip():
+            logger.debug(f"    - Invalid: Text is empty")
+            return False
+
+        # Simple email pattern check
         import re
         email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
-        has_email = bool(re.search(email_pattern, text_to_check))
+        emails_found = re.findall(email_pattern, text)
 
-        if has_login_info or has_email:
-            return {"passed": True, "message": ""}
+        logger.debug(f"    - Text length: {len(text.strip())} characters")
+        logger.debug(f"    - Emails found: {emails_found}")
+
+        if emails_found:
+            logger.debug(f"    - Valid: Email address found")
+            return True
         else:
-            return {
-                "passed": False,
-                "message": "Customer login details should be provided (username, email, account ID, or customer ID)"
-            }
+            logger.debug(f"    - Invalid: No email address found")
+            return False
 
     def _evaluate_pic_field(self, ticket: JiraTicket) -> Dict[str, Any]:
         """Evaluate PIC (Person in Charge) field rule."""
-        # Check both summary and description for PIC information
+        # First check if PIC field is populated
+        if ticket.pic and ticket.pic.strip():
+            return {"passed": True, "message": ""}
+
+        # If PIC field is empty, check summary and description for PIC information
         text_to_check = f"{ticket.summary or ''} {ticket.description or ''}".lower()
 
         # Keywords that indicate PIC is mentioned
@@ -408,7 +525,12 @@ class QualityAssessmentEngine:
 
     def _evaluate_top_merchants_impact(self, ticket: JiraTicket) -> Dict[str, Any]:
         """Evaluate top 450 merchants impact rule."""
-        # Check both summary and description for merchant impact information
+        # First check if the dedicated top_450_merchants field is populated
+        if ticket.top_450_merchants and ticket.top_450_merchants.strip():
+            # Field is populated, consider it valid regardless of value (Yes/No)
+            return {"passed": True, "message": ""}
+
+        # If field is empty, check summary and description for merchant impact information
         text_to_check = f"{ticket.summary or ''} {ticket.description or ''}".lower()
 
         # Keywords that indicate merchant impact is mentioned
@@ -431,7 +553,11 @@ class QualityAssessmentEngine:
 
     def _evaluate_product_field(self, ticket: JiraTicket) -> Dict[str, Any]:
         """Evaluate product field rule."""
-        # Check both summary and description for product information
+        # First check if the dedicated product field is populated
+        if ticket.product and ticket.product.strip():
+            return {"passed": True, "message": ""}
+
+        # If product field is empty, check summary and description for product information
         text_to_check = f"{ticket.summary or ''} {ticket.description or ''}".lower()
 
         # Keywords that indicate product is mentioned
@@ -453,7 +579,14 @@ class QualityAssessmentEngine:
 
     def _evaluate_actual_result(self, ticket: JiraTicket) -> Dict[str, Any]:
         """Evaluate actual result rule."""
-        # Check both summary and description for actual result information
+        # First check if the dedicated actual_result field is populated
+        if ticket.actual_result and ticket.actual_result.strip():
+            # Check if the field has meaningful content (not just whitespace)
+            actual_content = ticket.actual_result.strip()
+            if len(actual_content) >= 3:  # Minimum meaningful length (reduced from 10 to 3)
+                return {"passed": True, "message": ""}
+
+        # If actual result field is empty, check summary and description for actual result information
         text_to_check = f"{ticket.summary or ''} {ticket.description or ''}".lower()
 
         # Keywords that indicate actual result is mentioned
@@ -475,7 +608,14 @@ class QualityAssessmentEngine:
 
     def _evaluate_expected_result(self, ticket: JiraTicket) -> Dict[str, Any]:
         """Evaluate expected result rule."""
-        # Check both summary and description for expected result information
+        # First check if the dedicated expected_result field is populated
+        if ticket.expected_result and ticket.expected_result.strip():
+            # Check if the field has meaningful content (not just whitespace)
+            expected_content = ticket.expected_result.strip()
+            if len(expected_content) >= 3:  # Minimum meaningful length (reduced from 10 to 3)
+                return {"passed": True, "message": ""}
+
+        # If expected result field is empty, check summary and description for expected result information
         text_to_check = f"{ticket.summary or ''} {ticket.description or ''}".lower()
 
         # Keywords that indicate expected result is mentioned
@@ -575,10 +715,13 @@ class QualityAssessmentEngine:
         suggestions = []
         
         if not assessment.summary_valid:
-            suggestions.append("Provide a clear, descriptive summary that explains the issue concisely")
+            suggestions.append("Provide a clear summary (more than 10 characters, no quotes, meaningful content)")
         
         if not assessment.description_valid:
-            suggestions.append("Add a detailed description explaining what happened, what was expected, and the impact")
+            if ticket.issue_type.value == "Unreproducible Bug":
+                suggestions.append("Provide a detailed description (required for Unreproducible Bug tickets)")
+            else:
+                suggestions.append("Provide a clear description")
         
         if not assessment.steps_valid and (ticket.is_bug or ticket.issue_type.value == "Problem"):
             suggestions.append("Include step-by-step instructions to reproduce the issue")
@@ -593,7 +736,7 @@ class QualityAssessmentEngine:
             suggestions.append("Specify PIC (Person in Charge) or responsible person for this issue")
 
         if not assessment.customer_login_valid:
-            suggestions.append("Provide customer login details (username, email, account ID, or customer ID) to help with investigation")
+            suggestions.append("Provide customer login details. Please include customer email address.")
 
         if not assessment.top_merchants_valid:
             suggestions.append("Specify if this issue affects top 450 merchants or high-value customers")

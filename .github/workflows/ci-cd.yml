@@ -77,7 +77,7 @@ jobs:
 
     - name: Run tests with pytest
       env:
-        REDIS_URL: redis://localhost:6379
+        REDIS_URL: redis://redis:6379
         DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_ps_ticket_bot
         ENVIRONMENT: testing
       run: |

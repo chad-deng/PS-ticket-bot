@@ -299,14 +299,23 @@ async def process_ticket_manually(
         
         # Queue the ticket for processing with custom options
         from app.core.queue import get_queue_manager
-        
+
         queue_manager = get_queue_manager()
-        
+
+        # Prepare processing options
+        processing_options = {
+            "force_reprocess": force_reprocess,
+            "skip_quality_check": skip_quality_check,
+            "skip_ai_comment": skip_ai_comment,
+            "skip_transition": skip_transition
+        }
+
         # For manual processing, we'll use high priority
         task_id = queue_manager.queue_ticket_processing(
-            issue_key, 
-            "manual_trigger", 
-            "high"
+            issue_key,
+            "manual_trigger",
+            "high",
+            processing_options
         )
         
         logger.info(f"Successfully queued {issue_key} for manual processing with task ID {task_id}")
@@ -344,19 +353,22 @@ async def process_ticket_manually(
 async def test_jira_connection():
     """
     Test JIRA API connection and permissions.
-    
+
     Returns:
         Connection test results with permission information.
     """
+    import httpx
+    from datetime import datetime
+
     try:
         logger.info("Testing JIRA connection")
-        
+
         jira_client = get_jira_client()
         settings = get_settings()
-        
+
         # Check if we're in development mode with example.atlassian.net
         dev_mode = "example.atlassian.net" in settings.jira.base_url and settings.app.environment == "development"
-        
+
         if dev_mode:
             logger.info("Using mock connection in development mode")
             return JSONResponse(
@@ -393,35 +405,32 @@ async def test_jira_connection():
         try:
             # Try to make a simple API call
             # We'll use the current user endpoint as a test
-            import httpx
-            from datetime import datetime
-            
             url = f"{settings.jira.base_url}/rest/api/2/myself"
             auth = (settings.jira.username, settings.jira.api_token)
-            
+
             async with httpx.AsyncClient(timeout=10) as client:
                 response = await client.get(url, auth=auth)
-                
+
                 if response.status_code == 200:
                     test_results["connection"] = True
                     test_results["authentication"] = True
-                    
+
                     user_info = response.json()
                     test_results["server_info"] = {
                         "user": user_info.get("displayName"),
                         "account_id": user_info.get("accountId"),
                         "email": user_info.get("emailAddress")
                     }
-                    
+
                 elif response.status_code == 401:
                     test_results["connection"] = True
                     test_results["authentication"] = False
                     test_results["errors"].append("Authentication failed - check username and API token")
-                    
+
                 else:
                     test_results["connection"] = True
                     test_results["errors"].append(f"Unexpected response: {response.status_code}")
-                    
+
         except Exception as e:
             test_results["errors"].append(f"Connection failed: {str(e)}")
         

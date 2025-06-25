@@ -105,14 +105,15 @@ build_images() {
 
 deploy() {
     log_info "Deploying PS Ticket Process Bot..."
-    
+
     # Stop existing containers
     docker-compose -f "$COMPOSE_FILE" down
-    
-    # Start new deployment
+
+    # Start new deployment (without monitoring by default)
     docker-compose -f "$COMPOSE_FILE" up -d
-    
+
     log_success "Deployment started"
+    log_info "To enable monitoring, run: docker-compose -f $COMPOSE_FILE --profile monitoring up -d"
 }
 
 wait_for_services() {

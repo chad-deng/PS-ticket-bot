@@ -30,7 +30,7 @@ services:
   # Celery Worker for Background Tasks
   celery-worker:
     build: .
-    command: celery -A app.core.celery worker --loglevel=info --concurrency=4
+    command: celery -A app.core.celery worker --loglevel=info --concurrency=4 --queues=ticket_processing,quality_assessment,ai_generation,jira_operations,scheduled_search
     environment:
       - ENVIRONMENT=production
       - REDIS_URL=redis://redis:6379
@@ -45,11 +45,16 @@ services:
       - ./logs:/app/logs
     networks:
       - ps-ticket-network
+    healthcheck:
+      test: ["CMD", "celery", "-A", "app.core.celery", "inspect", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # Celery Beat Scheduler
   celery-beat:
     build: .
-    command: celery -A app.core.celery beat --loglevel=info
+    command: celery -A app.core.celery beat --loglevel=info --schedule=/app/data/celerybeat-schedule
     environment:
       - ENVIRONMENT=production
       - REDIS_URL=redis://redis:6379
@@ -62,9 +67,14 @@ services:
     restart: unless-stopped
     volumes:
       - ./logs:/app/logs
-      - ./celerybeat-schedule:/app/celerybeat-schedule
+      - celerybeat_data:/app/data
     networks:
       - ps-ticket-network
+    healthcheck:
+      test: ["CMD", "test", "-f", "/app/data/celerybeat-schedule"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
 
   # Redis for Celery Queue and Caching
   redis:
@@ -126,7 +136,7 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -137,6 +147,8 @@ services:
     networks:
       - ps-ticket-network
     restart: unless-stopped
+    profiles:
+      - monitoring
 
   # Grafana for Metrics Visualization (Optional)
   grafana:
@@ -147,17 +159,20 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=admin123
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
-      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
     networks:
       - ps-ticket-network
     restart: unless-stopped
+    profiles:
+      - monitoring
 
 volumes:
   redis_data:
   postgres_data:
   prometheus_data:
   grafana_data:
+  celerybeat_data:
 
 networks:
   ps-ticket-network:

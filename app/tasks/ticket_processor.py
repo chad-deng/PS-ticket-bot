@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 @celery_app.task(bind=True, max_retries=3, default_retry_delay=60)
-def process_ticket(self, issue_key: str, webhook_event: str) -> Dict[str, Any]:
+def process_ticket(self, issue_key: str, webhook_event: str, processing_options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
     Main ticket processing task that orchestrates the entire pipeline.
 
@@ -31,12 +31,24 @@ def process_ticket(self, issue_key: str, webhook_event: str) -> Dict[str, Any]:
     Args:
         issue_key: JIRA issue key
         webhook_event: Type of webhook event that triggered processing
+        processing_options: Optional processing options (force_reprocess, skip_quality_check, etc.)
 
     Returns:
         Dict: Processing result
     """
     start_time = time.time()
     logger.info(f"Starting ticket processing for {issue_key} (event: {webhook_event})")
+
+    # Parse processing options
+    if processing_options is None:
+        processing_options = {}
+
+    force_reprocess = processing_options.get("force_reprocess", False)
+    skip_quality_check = processing_options.get("skip_quality_check", False)
+    skip_ai_comment = processing_options.get("skip_ai_comment", False)
+    skip_transition = processing_options.get("skip_transition", False)
+
+    logger.info(f"Processing options for {issue_key}: force_reprocess={force_reprocess}, skip_quality_check={skip_quality_check}, skip_ai_comment={skip_ai_comment}, skip_transition={skip_transition}")
 
     # Initialize processing result
     result = ProcessingResult(
@@ -83,25 +95,40 @@ def process_ticket(self, issue_key: str, webhook_event: str) -> Dict[str, Any]:
             logger.warning(f"Found {duplicate_search_result.get('duplicates_found')} potential duplicates for {issue_key}")
             # Continue processing but note the duplicates
 
-        # Step 4: AI assess ticket quality
-        logger.info(f"Step 4: AI assessing quality for ticket {issue_key}")
-        quality_result = _assess_quality_sync(ticket.dict())
+        # Step 4: AI assess ticket quality (unless skipped)
+        if skip_quality_check:
+            logger.info(f"Step 4: Skipping quality assessment for ticket {issue_key} (skip_quality_check=True)")
+            # Use default quality level for skipped assessment
+            quality_level = "medium"
+            result.quality_assessed = False
+            quality_result = {
+                "success": True,
+                "assessment": {"overall_quality": {"value": "medium"}, "score": 50},
+                "quality_level": "medium"
+            }
+        else:
+            logger.info(f"Step 4: AI assessing quality for ticket {issue_key}")
+            quality_result = _assess_quality_sync(ticket.dict())
 
-        if not quality_result.get("success"):
-            logger.error(f"Quality assessment failed for {issue_key}")
-            result.error_message = quality_result.get("error", "Quality assessment failed")
-            result.error_step = "quality_assessment"
-            return result.dict()
+            if not quality_result.get("success"):
+                logger.error(f"Quality assessment failed for {issue_key}")
+                result.error_message = quality_result.get("error", "Quality assessment failed")
+                result.error_step = "quality_assessment"
+                return result.dict()
 
-        result.quality_assessed = True
-        result.quality_assessment = quality_result.get("assessment")
-        quality_level = quality_result.get("quality_level")
+            result.quality_assessed = True
+            result.quality_assessment = quality_result.get("assessment")
+            quality_level = quality_result.get("quality_level")
 
         # Step 5: AI add comment and transition status
         logger.info(f"Step 5: AI adding comment and transitioning status for ticket {issue_key}")
 
-        # Generate and post AI comment (if enabled)
-        if config_manager.settings.features.enable_ai_comments:
+        # Generate and post AI comment (if enabled and not skipped)
+        if skip_ai_comment:
+            logger.info(f"Skipping AI comment generation for ticket {issue_key} (skip_ai_comment=True)")
+            result.comment_generated = False
+            result.comment_posted = False
+        elif config_manager.settings.features.enable_ai_comments:
             logger.info(f"Generating AI comment for ticket {issue_key}")
             comment_result = _generate_comment_sync(ticket.dict(), quality_result.get("assessment"))
 
@@ -120,9 +147,14 @@ def process_ticket(self, issue_key: str, webhook_event: str) -> Dict[str, Any]:
                     logger.warning(f"Failed to post comment to {issue_key}: {post_result.get('error')}")
             else:
                 logger.warning(f"Comment generation failed for {issue_key}: {comment_result.get('error')}")
+        else:
+            logger.info(f"AI comments disabled in configuration for ticket {issue_key}")
 
-        # Transition ticket status based on quality (if enabled)
-        if config_manager.settings.features.enable_status_transitions:
+        # Transition ticket status based on quality (if enabled and not skipped)
+        if skip_transition:
+            logger.info(f"Skipping status transition for ticket {issue_key} (skip_transition=True)")
+            result.status_transitioned = False
+        elif config_manager.settings.features.enable_status_transitions:
             logger.info(f"Transitioning ticket {issue_key} based on quality level: {quality_level}")
             transition_result = _transition_ticket_sync(issue_key, quality_level)
 
@@ -133,6 +165,8 @@ def process_ticket(self, issue_key: str, webhook_event: str) -> Dict[str, Any]:
             else:
                 logger.warning(f"Failed to transition ticket {issue_key}: {transition_result.get('error')}")
                 # Don't fail the entire process for transition failures
+        else:
+            logger.info(f"Status transitions disabled in configuration for ticket {issue_key}")
         
         # Success!
         result.success = True

@@ -119,36 +119,49 @@ class QueueManager:
         self.redis_client = get_redis_client()
         self.celery_app = create_celery_app()
         
-    def queue_ticket_processing(self, issue_key: str, webhook_event: str, priority: str = "normal") -> str:
+    def queue_ticket_processing(
+        self,
+        issue_key: str,
+        webhook_event: str,
+        priority: str = "normal",
+        processing_options: Optional[Dict[str, Any]] = None
+    ) -> str:
         """
         Queue a ticket for processing.
-        
+
         Args:
             issue_key: JIRA issue key
             webhook_event: Type of webhook event
             priority: Task priority (high, normal, low)
-            
+            processing_options: Optional processing options (force_reprocess, skip_quality_check, etc.)
+
         Returns:
             str: Task ID
         """
         from app.tasks.ticket_processor import process_ticket
-        
+
         logger.info(f"Queuing ticket {issue_key} for processing (event: {webhook_event})")
-        
+
         # Set task priority
         task_priority = 5  # Default priority
         if priority == "high":
             task_priority = 9
         elif priority == "low":
             task_priority = 1
-        
+
+        # Prepare task arguments
+        task_args = [issue_key, webhook_event]
+        if processing_options:
+            task_args.append(processing_options)
+            logger.info(f"Processing options for {issue_key}: {processing_options}")
+
         # Queue the task
         result = process_ticket.apply_async(
-            args=[issue_key, webhook_event],
+            args=task_args,
             priority=task_priority,
             queue="ticket_processing"
         )
-        
+
         logger.info(f"Queued ticket {issue_key} with task ID {result.id}")
         return result.id
     

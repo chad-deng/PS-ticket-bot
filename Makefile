@@ -78,7 +78,7 @@ dev-up:
 	@echo "✅ Development environment started!"
 	@echo "   - Bot API: http://localhost:8000"
 	@echo "   - Health Check: http://localhost:8001/health"
-	@echo "   - Redis: localhost:6379"
+	@echo "   - Redis: redis:6379"
 	@echo "   - PostgreSQL: localhost:5432"
 
 dev-down:
@@ -109,7 +109,27 @@ queue-purge:
 # Code Quality
 test:
 	@echo "🧪 Running tests..."
-	pytest --cov=app --cov-report=term-missing --cov-report=html
+	python scripts/run_tests.py
+
+test-unit:
+	@echo "🧪 Running unit tests..."
+	python scripts/run_tests.py unit
+
+test-integration:
+	@echo "🧪 Running integration tests..."
+	python scripts/run_tests.py integration
+
+test-api:
+	@echo "🧪 Running API tests..."
+	python scripts/run_tests.py api
+
+test-fast:
+	@echo "🧪 Running fast tests..."
+	python scripts/run_tests.py fast
+
+test-clean:
+	@echo "🧹 Cleaning test artifacts and running tests..."
+	python scripts/run_tests.py --clean
 
 test-watch:
 	@echo "👀 Running tests in watch mode..."

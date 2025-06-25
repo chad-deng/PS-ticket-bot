@@ -63,6 +63,7 @@ jira:
       affected_version: null    # To be mapped: customfield_XXXXX
       customer_impact: null     # Optional: customfield_XXXXX
       urgency: null            # Optional: customfield_XXXXX
+      customer_login_details: "customfield_10674"  # Customer Login Details field
       
   # Status Transitions Configuration
   transitions:

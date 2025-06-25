@@ -60,6 +60,78 @@ gemini:
   max_retries: 5
   retry_delay: 2
 
+# JIRA Configuration
+jira:
+  # Field Mappings
+  fields:
+    standard:
+      summary: "summary"
+      description: "description"
+      issue_type: "issuetype"
+      priority: "priority"
+      attachments: "attachment"
+      reporter: "reporter"
+      created: "created"
+      status: "status"
+
+    custom:
+      steps_to_reproduce: "customfield_10668"  # Steps To Reproduce field
+      affected_version: "environment"          # Environment field (standard)
+      customer_impact: null                    # Optional: customfield_XXXXX
+      pic: "customfield_10678"                 # PIC (Person in Charge) field
+      top_450_merchants: "customfield_10745"   # Is Affecting top 450 merchants field
+      product: "customfield_10720"             # Product field
+      actual_result: "customfield_10669"       # Actual Result field
+      expected_result: "customfield_10670"     # Expected Result field
+      customer_login_details: "customfield_10674"  # Customer Login Details field
+
+  # Issue Types to Process
+  issue_types:
+    - name: "Problem"
+      id: null  # To be discovered via API
+      process: true  # Default issue type
+    - name: "Bug"
+      id: null  # To be discovered via API
+      process: true
+    - name: "Support Request"
+      id: null  # To be discovered via API
+      process: true
+    - name: "Feature Request"
+      id: null  # To be discovered via API
+      process: true
+    - name: "Improvement"
+      id: null  # To be discovered via API
+      process: true
+    - name: "Epic"
+      id: null  # To be discovered via API
+      process: false  # Excluded from processing
+    - name: "Sub-task"
+      id: null  # To be discovered via API
+      process: false  # Excluded from processing
+    - name: "Unreproducible Bug"
+      id: null  # To be discovered via API
+      process: true  # Special handling for unreproducible bugs
+
+  # Status Transitions Configuration
+  transitions:
+    high_quality:
+      - target_status: "QA investigating"
+        transition_id: "271"  # Researching transition
+        transition_name: "Researching"
+        conditions: ["ticket_has_required_info"]
+
+    medium_quality:
+      - target_status: "Pending_CSC"
+        transition_id: "141"  # Pending_CSC transition
+        transition_name: "Pending_CSC"
+        conditions: ["ticket_missing_some_info"]
+
+    low_quality:
+      - target_status: "Pending_CSC"
+        transition_id: "141"  # Pending_CSC transition
+        transition_name: "Pending_CSC"
+        conditions: ["ticket_missing_info"]
+
 # Queue Configuration
 queue:
   broker_url: "${REDIS_URL}"

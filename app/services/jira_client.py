@@ -55,11 +55,13 @@ class JiraClient:
         
         # Field mappings
         self.field_mappings = self.config_manager.get_jira_field_mappings()
-        
+        logger.debug(f"Loaded JIRA field mappings: {list(self.field_mappings.keys())}")
+        logger.debug(f"Customer login details field mapping: {self.field_mappings.get('customer_login_details', 'NOT FOUND')}")
+
         # Check if we're in development mode with example.atlassian.net
         # Only use mock data if explicitly using the example URL
         self.dev_mode = "example.atlassian.net" in self.base_url
-        
+
         logger.info(f"Initialized JIRA client for {self.base_url}" + (" (DEV MODE)" if self.dev_mode else ""))
     
     async def get_issue(self, issue_key: str) -> JiraTicket:
@@ -202,7 +204,14 @@ class JiraClient:
             project_name="Product Support",
             attachments=[],
             steps_to_reproduce="1. Navigate to the homepage\n2. Click on the login button\n3. Enter invalid credentials\n4. Observe the error",
-            affected_version="1.2.3"
+            affected_version="1.2.3",
+            customer_impact=None,
+            pic="John Doe",
+            top_450_merchants="No",
+            product="Web Application",
+            actual_result="Error message displayed",
+            expected_result="Successful login",
+            raw_data=None
         )
     
     def _parse_issue_data(self, issue_data: Dict[str, Any]) -> JiraTicket:
@@ -278,19 +287,77 @@ class JiraClient:
         steps_to_reproduce = None
         affected_version = None
         customer_impact = None
-        
+        pic = None
+        top_450_merchants = None
+        product = None
+        actual_result = None
+        expected_result = None
+        customer_login_details = None
+
         if "steps_to_reproduce" in self.field_mappings:
             steps_field = self.field_mappings["steps_to_reproduce"]
-            steps_to_reproduce = fields.get(steps_field)
-        
+            if steps_field:
+                steps_to_reproduce = fields.get(steps_field)
+
         if "affected_version" in self.field_mappings:
             version_field = self.field_mappings["affected_version"]
-            affected_version = fields.get(version_field)
-        
+            if version_field:
+                affected_version = fields.get(version_field)
+
         if "customer_impact" in self.field_mappings:
             impact_field = self.field_mappings["customer_impact"]
-            customer_impact = fields.get(impact_field)
-        
+            if impact_field:
+                customer_impact = fields.get(impact_field)
+
+        if "pic" in self.field_mappings:
+            pic_field = self.field_mappings["pic"]
+            if pic_field:
+                pic_value = fields.get(pic_field)
+                # Handle different PIC field formats (string, object, etc.)
+                if isinstance(pic_value, dict):
+                    pic = pic_value.get("displayName") or pic_value.get("name") or str(pic_value)
+                elif pic_value:
+                    pic = str(pic_value)
+
+        if "top_450_merchants" in self.field_mappings:
+            merchants_field = self.field_mappings["top_450_merchants"]
+            if merchants_field:
+                merchants_value = fields.get(merchants_field)
+                # Handle different field formats (boolean, string, object, etc.)
+                if isinstance(merchants_value, dict):
+                    top_450_merchants = merchants_value.get("value") or str(merchants_value)
+                elif merchants_value is not None:
+                    top_450_merchants = str(merchants_value)
+
+        if "product" in self.field_mappings:
+            product_field = self.field_mappings["product"]
+            if product_field:
+                product_value = fields.get(product_field)
+                if isinstance(product_value, dict):
+                    product = product_value.get("value") or product_value.get("name") or str(product_value)
+                elif product_value:
+                    product = str(product_value)
+
+        if "actual_result" in self.field_mappings:
+            actual_field = self.field_mappings["actual_result"]
+            if actual_field:
+                actual_result = fields.get(actual_field)
+
+        if "expected_result" in self.field_mappings:
+            expected_field = self.field_mappings["expected_result"]
+            if expected_field:
+                expected_result = fields.get(expected_field)
+
+        if "customer_login_details" in self.field_mappings:
+            customer_login_field = self.field_mappings["customer_login_details"]
+            if customer_login_field:
+                customer_login_details = fields.get(customer_login_field)
+                logger.debug(f"Parsing customer login details for {key}: field={customer_login_field}, value={repr(customer_login_details)}")
+            else:
+                logger.debug(f"Customer login details field mapping is None for {key}")
+        else:
+            logger.debug(f"Customer login details field mapping not found in field_mappings for {key}")
+
         # Parse attachments
         attachments = []
         attachment_data = fields.get("attachment", [])
@@ -331,6 +398,12 @@ class JiraClient:
             steps_to_reproduce=steps_to_reproduce,
             affected_version=affected_version,
             customer_impact=customer_impact,
+            pic=pic,
+            top_450_merchants=top_450_merchants,
+            product=product,
+            actual_result=actual_result,
+            expected_result=expected_result,
+            customer_login_details=customer_login_details,
             attachments=attachments,
             project_key=project_key,
             project_name=project_name,

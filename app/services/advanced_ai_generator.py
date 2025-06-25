@@ -97,6 +97,14 @@ Your role is to generate professional, contextually appropriate comments that:
 6. Keep comments concise and focused
 7. Avoid verbose explanations about processes or commitments
 
+IMPORTANT RESTRICTIONS:
+- Do NOT include greeting or closing sections (these are added automatically)
+- Do NOT include process flow steps or workflow information
+- Do NOT include status transition information
+- Do NOT include duplicate ticket information
+- Do NOT include commitment timelines or detailed process explanations
+- Focus ONLY on the core content requested
+
 Always be professional, empathetic, solution-oriented, and concise.""",
             
             "unreproducible_bug": """Analyze this unreproducible bug ticket and generate a specialized comment:
@@ -113,8 +121,12 @@ Always be professional, empathetic, solution-oriented, and concise.""",
 3. Mention log analysis and system monitoring
 4. Set appropriate expectations for resolution timeline
 5. Provide reassurance about thorough investigation
+6. Do not include process flow steps or status transition information
+7. Do not include duplicate ticket information
+8. Do not include greeting or closing - these will be added automatically
+9. Focus only on the core content about the investigation approach
 
-Generate a professional comment that conveys expertise in handling complex technical issues.""",
+Generate only the core content about the unreproducible bug investigation without greeting, closing, or process details.""",
             
             "high_quality_comprehensive": """Analyze this high-quality ticket and generate an encouraging, professional comment:
 
@@ -124,9 +136,6 @@ Generate a professional comment that conveys expertise in handling complex techn
 **Quality Assessment:**
 {quality_context}
 
-**Duplicate Analysis:**
-{duplicate_context}
-
 **Business Context:**
 {business_context}
 
@@ -134,11 +143,14 @@ Generate a professional comment that conveys expertise in handling complex techn
 1. Acknowledge the excellent ticket quality
 2. Highlight specific strengths in the submission
 3. Provide clear next steps and timeline expectations
-4. Address any duplicate tickets found
-5. Demonstrate understanding of business impact
-6. Set professional tone that builds confidence
+4. Demonstrate understanding of business impact
+5. Set professional tone that builds confidence
+6. Do not include process flow steps or status transition information
+7. Do not include duplicate ticket information
+8. Do not include greeting or closing - these will be added automatically
+9. Focus only on the core content about next steps and appreciation
 
-Generate a comment that shows appreciation for quality submissions while providing clear next steps.""",
+Generate only the core content about ticket quality and next steps without greeting, closing, or process details.""",
             
             "improvement_guidance": """Analyze this ticket that needs improvement and generate helpful guidance:
 
@@ -152,15 +164,17 @@ Generate a comment that shows appreciation for quality submissions while providi
 {missing_fields_context}
 
 **Instructions:**
-1. Thank the user for their submission
-2. Provide specific, actionable requests for missing information
-3. Keep explanations concise and focused
-4. Offer assistance if they need help providing the information
-5. Maintain encouraging tone while being clear about requirements
-6. Avoid verbose explanations about why information is needed
-7. Do not include commitment timelines or detailed process explanations
+1. Provide specific, actionable requests for missing information
+2. Keep explanations concise and focused
+3. Maintain encouraging tone while being clear about requirements
+4. Avoid verbose explanations about why information is needed
+5. Do not include commitment timelines or detailed process explanations
+6. Do not include process flow steps or status transition information
+7. Do not include duplicate ticket information
+8. Do not include greeting or closing - these will be added automatically
+9. Focus only on the core content about what information is needed
 
-Generate a concise, helpful comment that guides users to provide better information without being verbose."""
+Generate only the core content about missing information requirements without greeting, closing, or process details."""
         }
     
     async def generate_advanced_comment(self, context: CommentContext) -> AICommentResult:
@@ -280,10 +294,11 @@ Generate a concise, helpful comment that guides users to provide better informat
     
     def _build_ticket_context(self, ticket: JiraTicket) -> str:
         """Build comprehensive ticket context string."""
+        description = ticket.description or "No description provided"
         return f"""
 - Key: {ticket.key}
 - Summary: {ticket.summary}
-- Description: {ticket.description[:200]}{'...' if len(ticket.description or '') > 200 else ''}
+- Description: {description[:200]}{'...' if len(description) > 200 else ''}
 - Issue Type: {ticket.issue_type.value}
 - Priority: {ticket.priority.value}
 - Reporter: {ticket.reporter.display_name}
@@ -350,25 +365,37 @@ Generate a concise, helpful comment that guides users to provide better informat
             raise
     
     def _enhance_comment(self, comment: str, context: CommentContext) -> str:
-        """Enhance the AI-generated comment with additional context."""
-        # Add timestamp
+        """Enhance the AI-generated comment with standardized greeting and closing."""
+        # Ensure comment starts with the standard greeting
+        greeting = f"Hello {context.ticket.reporter.display_name},\n\nThank you for bringing this issue to our attention. To ensure we can provide you with the most effective assistance, I'd like to guide you through providing some additional information that will significantly improve our ability to resolve this quickly."
+
+        # Remove any existing greeting from AI-generated content
+        lines = comment.split('\n')
+        content_start = 0
+        for i, line in enumerate(lines):
+            if line.strip() and not line.lower().startswith(('hello', 'hi', 'thank you')):
+                content_start = i
+                break
+
+        # Extract the main content (skip AI-generated greeting)
+        main_content = '\n'.join(lines[content_start:]).strip()
+
+        # Build the enhanced comment with standard structure
+        enhanced_comment = greeting
+
+        if main_content:
+            enhanced_comment += f"\n\n{main_content}"
+
+        # Add standard closing
+        closing = "\n\nI'm here to help if you need any clarification on what information would be most helpful!"
+        enhanced_comment += closing
+
+        # Add standardized signature
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
+        signature = f"\n\n—\nThis comment was generated using Advanced AI with concise formatting\nGenerated on: {timestamp}"
+        enhanced_comment += signature
 
-        # Add duplicate ticket information if available
-        if context.duplicate_tickets:
-            duplicate_section = f"\n\n**Related Tickets Analysis:**\nI've identified {len(context.duplicate_tickets)} potentially related ticket(s) that may provide additional context:\n\n"
-            for dup in context.duplicate_tickets[:3]:  # Show up to 3 duplicates
-                duplicate_section += f"- **{dup.get('key', 'Unknown')}**: {dup.get('summary', 'No summary')[:60]}... ({dup.get('status', 'Unknown')})\n"
-            duplicate_section += "\nPlease review these tickets to see if they contain relevant information or if your issue might be related to an existing investigation."
-            comment += duplicate_section
-
-        # Note: Status transition info removed per user feedback
-        # Status transitions happen automatically in the background
-
-        # Add automated signature
-        comment += f"\n\n---\n*This comment was automatically generated by PS Ticket Process Bot on {timestamp}*"
-
-        return comment
+        return enhanced_comment
     
     def _calculate_confidence_score(self, comment: str, context: CommentContext) -> float:
         """Calculate confidence score for the generated comment."""
@@ -389,27 +416,33 @@ Generate a concise, helpful comment that guides users to provide better informat
         return min(1.0, score)
     
     def _generate_intelligent_fallback(self, context: CommentContext) -> str:
-        """Generate an intelligent fallback comment when AI fails."""
+        """Generate an intelligent fallback comment with standardized greeting and closing."""
         ticket = context.ticket
         quality = context.quality_assessment
 
-        # Use the existing fallback but enhance it
-        fallback = self.gemini_client.generate_fallback_comment(ticket, quality)
+        # Standard greeting
+        fallback = f"Hello {ticket.reporter.display_name},\n\n"
+        fallback += "Thank you for bringing this issue to our attention. To ensure we can provide you with the most effective assistance, I'd like to guide you through providing some additional information that will significantly improve our ability to resolve this quickly.\n\n"
 
-        # Add duplicate ticket information if available
-        if context.duplicate_tickets:
-            duplicate_section = f"\n\n**Related Tickets Analysis:**\nI've identified {len(context.duplicate_tickets)} potentially related ticket(s) that may provide additional context:\n\n"
-            for dup in context.duplicate_tickets[:3]:  # Show up to 3 duplicates
-                duplicate_section += f"- **{dup.get('key', 'Unknown')}**: {dup.get('summary', 'No summary')[:60]}... ({dup.get('status', 'Unknown')})\n"
-            duplicate_section += "\nPlease review these tickets to see if they contain relevant information or if your issue might be related to an existing investigation."
-            fallback += duplicate_section
+        # Main content based on quality assessment
+        if quality.overall_quality.value == "high":
+            fallback += "Your ticket contains good information. We'll investigate this issue and provide updates."
+        else:
+            fallback += "**Required Information for Optimal Resolution:**\n\n"
 
-        # Note: Status transition info removed per user feedback
-        # Status transitions happen automatically in the background
+            # Add missing fields
+            if context.missing_fields:
+                for field in context.missing_fields[:5]:  # Limit to 5 fields
+                    fallback += f"• {field}\n"
 
-        # Add timestamp
+            fallback += "\nPlease update the ticket with this information so we can proceed with the investigation."
+
+        # Standard closing
+        fallback += "\n\nI'm here to help if you need any clarification on what information would be most helpful!"
+
+        # Standard signature
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
-        fallback += f"\n\n---\n*This comment was automatically generated by PS Ticket Process Bot on {timestamp}*"
+        fallback += f"\n\n—\nThis comment was generated using Advanced AI with concise formatting\nGenerated on: {timestamp}"
 
         return fallback
 

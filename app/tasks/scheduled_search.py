@@ -16,18 +16,21 @@ logger = logging.getLogger(__name__)
 
 
 @celery_app.task(bind=True, max_retries=3, default_retry_delay=300)  # 5 minute retry delay
-def scheduled_ticket_search(self, search_config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def scheduled_ticket_search(self, search_config: Optional[Dict[str, Any]] = None,
+                          priority: str = 'normal', profile_name: str = 'default') -> Dict[str, Any]:
     """
     Scheduled task to search for JIRA tickets and queue them for processing.
-    
+
     Args:
         search_config: Optional search configuration override
-        
+        priority: Task priority level ('low', 'normal', 'high')
+        profile_name: Name of the search profile being executed
+
     Returns:
         Dict: Search and processing results
     """
     start_time = datetime.utcnow()
-    logger.info("Starting scheduled JIRA ticket search")
+    logger.info(f"Starting scheduled JIRA ticket search for profile '{profile_name}' with priority '{priority}'")
     
     result = {
         "search_started_at": start_time.isoformat(),
@@ -97,10 +100,10 @@ def scheduled_ticket_search(self, search_config: Optional[Dict[str, Any]] = None
                             continue
                         
                         # Queue ticket for processing
-                        priority = _determine_priority(ticket)
+                        task_priority = _determine_priority(ticket)
                         task_result = process_ticket.apply_async(
                             args=[issue_key, "scheduled_search"],
-                            priority=priority,
+                            priority=task_priority,
                             queue="ticket_processing"
                         )
                         

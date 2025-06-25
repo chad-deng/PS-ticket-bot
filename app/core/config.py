@@ -117,7 +117,7 @@ class DatabaseConfig(BaseSettings):
 class RedisConfig(BaseSettings):
     """Redis configuration settings."""
 
-    url: str = Field("redis://localhost:6379", env="REDIS_URL")
+    url: str = Field("redis://redis:6379", env="REDIS_URL")
     db: int = Field(0, env="REDIS_DB")
     decode_responses: bool = Field(True, env="REDIS_DECODE_RESPONSES")
     socket_timeout: int = Field(5, env="REDIS_SOCKET_TIMEOUT")
@@ -125,7 +125,7 @@ class RedisConfig(BaseSettings):
     retry_on_timeout: bool = Field(True, env="REDIS_RETRY_ON_TIMEOUT")
     max_connections: int = Field(50, env="REDIS_MAX_CONNECTIONS")
 
-    model_config = {"extra": "ignore"}
+    model_config = {"extra": "ignore", "env_file": ".env", "case_sensitive": False}
 
 
 class WebhookConfig(BaseSettings):
